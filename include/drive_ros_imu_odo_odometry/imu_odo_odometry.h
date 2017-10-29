@@ -1,6 +1,7 @@
 #ifndef IMUODOODOMETRY_H
 #define IMUODOODOMETRY_H
 
+#include <mutex>
 #include <ros/ros.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -19,7 +20,7 @@
 #include "measurement_model.h"
 #include "system_model.h"
 
-
+#define GRAVITY T(9.81)
 
 
 class ImuOdoOdometry
@@ -31,8 +32,7 @@ public:
   //! Destructor.
   ~ImuOdoOdometry();
 
-  //! Initializer
-  bool init();
+  void computeOdometry();
 
   typedef float T;
 
@@ -44,27 +44,27 @@ public:
   typedef CTRA::SystemModel<T> SystemModel;
   typedef Kalman::ExtendedKalmanFilter<State> Filter;
 
-  typedef message_filters::sync_policies::ApproximateTime<drive_ros_msgs::mav_cc16_ODOMETER_DELTA,
-                                                          drive_ros_msgs::mav_cc16_IMU>
-                                                          ApproxSyncPolicy;
-
 
 private:
 
-  void computeTimeStamp();
-  void computeMeasurement();
+  void computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_DELTA &odo_msg,
+                          const drive_ros_msgs::mav_cc16_IMU &imu_msg);
   void computeFilterStep();
-  void initFilter();
   void updateCarState();
 
-  //! Callback function for subscriber.
-  void syncCallback(const drive_ros_msgs::mav_cc16_ODOMETER_DELTAConstPtr &msg_odo,
-                    const drive_ros_msgs::mav_cc16_IMUConstPtr &msg_imu);
 
-  message_filters::Subscriber<drive_ros_msgs::mav_cc16_IMU> *imu_sub;
-  message_filters::Subscriber<drive_ros_msgs::mav_cc16_ODOMETER_DELTA> *odo_sub;
-  message_filters::Synchronizer<ApproxSyncPolicy> *sync;
-  ApproxSyncPolicy* policy;
+  //! Callback function for subscriber.
+  void odoCallback(const drive_ros_msgs::mav_cc16_ODOMETER_DELTAConstPtr &msg);
+  void imuCallback(const drive_ros_msgs::mav_cc16_IMUConstPtr &msg);
+
+  drive_ros_msgs::mav_cc16_ODOMETER_DELTA odo_msg;
+  drive_ros_msgs::mav_cc16_IMU imu_msg;
+  std::mutex odo_mut;
+  std::mutex imu_mut;
+
+
+  ros::Subscriber imu_sub;
+  ros::Subscriber odo_sub;
 
 
   ros::Publisher time_debug_test;
@@ -82,6 +82,22 @@ private:
   ros::Time lastTimestamp;
   ros::Time currentTimestamp;
   ros::Duration previousDelta;
+
+  double max_time_diff;
+  bool debug_time;
+
+  double odometer_velo_cov_xx;
+  double imu_acc_cov_xx;
+  double imu_acc_cov_yy;
+  double imu_gyro_cov_zz;
+  double imu_acc_bias_x;
+  double imu_acc_bias_y;
+  double imu_acc_bias_z;
+  double imu_gyro_bias_x;
+  double imu_gyro_bias_y;
+  double imu_gyro_bias_z;
+
+
 
 };
 

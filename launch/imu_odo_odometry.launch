@@ -1,0 +1,27 @@
+<launch>
+    <!-- odometer delta input topic -->
+    <arg name="odo_topic" default="/from_mav/odometer_delta"/>
+    <!-- IMU delta input topic -->
+    <arg name="imu_topic" default="/from_mav/imu"/>
+    <!-- odometry output topic -->
+    <arg name="out_topic" default=""/>
+
+    <!-- rate at which the odometry calculation will run (limited by the input topics rates) -->
+    <arg name="rate" default="100"/>
+    <!-- enable time debugging -->
+    <arg name="debug_time" default="true"/>
+    <!-- max time difference between input topics allowed [seconds] -->
+    <arg name="max_time_diff" default="0.0035"/>
+
+
+    <node name="road_detection" pkg="drive_ros_image_recognition" type="road_detection_node" respawn="false" output="screen">
+        <remap from="odo_in" to="$(arg odo_topic)"/>
+        <remap from="imu_in" to="$(arg imu_topic)"/>
+
+        <param name="reset_offset" type="int" value="$(arg rate)" />
+        <param name="debug_time" type="bool" value="$(arg debug_time)" />
+        <param name="max_time_diff" type="double" value="$(arg max_time_diff)" />
+        <rosparam command="load" file="$(find drive_ros_imu_odo_odometry)/config/kalman_cov.yaml"/>
+        <rosparam command="load" file="$(find drive_ros_imu_odo_odometry)/config/sensor_cov.yaml"/>
+    </node>
+</launch
