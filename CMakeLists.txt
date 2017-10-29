@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(drive_ros_imu_odo_odometry)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -11,11 +11,20 @@ find_package(catkin REQUIRED COMPONENTS
   drive_ros_msgs
   roscpp
   std_msgs
+  tf2
+  tf2_ros
 )
 
 ## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+set(KALMAN_BUILD_TESTING off)
+set(KALMAN_BUILD_EXAMPLES off)
+set(KALMAN_SRC_DIR ${CMAKE_SOURCE_DIR}/drive_ros_config/lib/kalman)
+set(Kalman_DIR ${CMAKE_CURRENT_BINARY_DIR}/kalman)
+add_subdirectory(${KALMAN_SRC_DIR} ${Kalman_DIR})
+find_package(Kalman)
 
+# set Kalman include dirs manually, because it somehow doesn't install the header files
+set(kalman_INCLUDE_DIRS ${KALMAN_SRC_DIR}/include)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -105,7 +114,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES drive_ros_imu_odo_odometry
-  CATKIN_DEPENDS drive_ros_msgs roscpp std_msgs
+  CATKIN_DEPENDS drive_ros_msgs roscpp std_msgs tf2 tf2_ros
 #  DEPENDS system_lib
 )
 
@@ -118,6 +127,8 @@ catkin_package(
 include_directories(
  include
   ${catkin_INCLUDE_DIRS}
+  ${kalman_INCLUDE_DIRS}
+  ${Eigen3_INCLUDE_DIR}
 )
 
 ## Declare a C++ library
@@ -125,16 +136,11 @@ include_directories(
 #   src/${PROJECT_NAME}/drive_ros_imu_odo_odometry.cpp
 # )
 
-## Add cmake target dependencies of the library
-## as an example, code may need to be generated before libraries
-## either from message generation or dynamic reconfigure
-add_dependencies(${PROJECT_NAME} drive_ros_msgs_generate_messages_cpp)
-
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
- add_executable(${PROJECT_NAME}_node src/simple_odometry.cpp
-                                     src/simple_odometry_node.cpp)
+ add_executable(${PROJECT_NAME}_node src/imu_odo_odometry.cpp
+                                     src/imu_odo_odometry_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -150,6 +156,12 @@ add_dependencies(${PROJECT_NAME} drive_ros_msgs_generate_messages_cpp)
 target_link_libraries(${PROJECT_NAME}_node
    ${catkin_LIBRARIES}
 )
+
+
+## Add cmake target dependencies of the library
+## as an example, code may need to be generated before libraries
+## either from message generation or dynamic reconfigure
+add_dependencies(${PROJECT_NAME}_node drive_ros_msgs_generate_messages_cpp)
 
 #############
 ## Install ##

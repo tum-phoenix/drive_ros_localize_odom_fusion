@@ -1,10 +1,10 @@
-#include "drive_ros_imu_odo_odometry/simple_odometry.h"
+#include "drive_ros_imu_odo_odometry/imu_odo_odometry.h"
 
 
 int main(int argc, char **argv)
 {
   // Set up ROS.
-  ros::init(argc, argv, "talker");
+  ros::init(argc, argv, "imu_odo_odometry");
 
   ros::NodeHandle pnh("~");
 
@@ -13,12 +13,12 @@ int main(int argc, char **argv)
   ros::Duration(2.0).sleep();
 #endif
 
-  SimpleOdometry simple_odom(pnh);
+  ImuOdoOdometry simple_odom(pnh);
   if (!simple_odom.init()) {
     return 1;
   }
   else {
-    ROS_INFO("Simple odometry node succesfully initialized");
+    ROS_INFO("IMU & Odometer odometry node succesfully initialized");
   }
 
   while (ros::ok()) {

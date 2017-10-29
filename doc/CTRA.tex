@@ -1,0 +1,346 @@
+\documentclass{article}
+
+\usepackage[landscape]{geometry}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\begin{document}
+\section{Constant Turn Rate and Acceleration Model (CTRA)} % (fold)
+Modelled after Schubert, R.; Richter, E.; Wanielik, G.: \emph{Comparison and evaluation of advanced motion models for vehicle tracking} in 2008 11th International Conference on Information Fusion
+% section constant_turn_rate_and_acceleration_model_ctra (end)
+
+\subsection{System Model}
+
+\[
+    \vec x_{t+T} = 
+    \begin{pmatrix}
+        x_{t+T} \\
+        y_{t+T} \\
+        \theta_{t+T} \\
+        v_{t+T} \\
+        a \\
+        \omega \\
+    \end{pmatrix}
+    =
+    \vec x_t +
+    \begin{pmatrix}
+        \Delta x(T) \\
+        \Delta y(T) \\
+        \omega T \\
+        a T \\
+        0 \\
+        0 \\
+    \end{pmatrix}
+\]
+with
+\begin{align*}
+    \Delta x(T) &=
+    \frac{1}{\omega^2} 
+    \left[
+        (v_t\omega + a\omega T) \sin(\theta_t + \omega T)
+        -v_t\omega \sin(\theta_t)
+        +a\cos(\theta_t + \omega T)
+        -a\cos(\theta_t)
+    \right] \\
+    &=     \frac{1}{\omega^2} 
+    \left[
+        a\omega T \sin(\theta_t + \omega T)
+        +v_t\omega ( \sin(\theta_t + \omega T) - \sin(\theta_t) )
+        +a( \cos(\theta_t + \omega T) - \cos(\theta_t) )
+    \right] \\
+\end{align*}
+and
+\begin{align*}
+    \Delta y(T) &=
+    \frac{1}{\omega^2} 
+    \left[
+        -(v_t\omega + a\omega T) \cos(\theta_t + \omega T)
+        +v_t\omega \cos(\theta_t)
+        +a\sin(\theta_t + \omega T)
+        -a\sin(\theta_t)
+    \right] \\
+    &= 
+    \frac{1}{\omega^2} 
+    \left[
+        -a\omega T \cos(\theta_t + \omega T)
+        -v_t\omega ( \cos(\theta_t + \omega T) - \cos(\theta_t) )
+        +a( \sin(\theta_t + \omega T) - \sin(\theta_t) )
+    \right] \\
+\end{align*}
+
+\subsubsection{Simplified System Model for $\omega \to 0$}
+
+\begin{align*}
+    \Delta x(T) &= \frac{1}{2} T(2v_t+aT)\cos(\theta_t) \\
+    \Delta y(T) &= \frac{1}{2} T(2v_t+aT)\sin(\theta_t) \\
+\end{align*}
+
+\subsection{System Model Jacobian}
+
+\begin{align*}
+    F
+%    &= 
+%    \begin{pmatrix}
+%        % x
+%        \frac{ \partial }{ \partial x_t } x_{t+T} &
+%        \frac{ \partial }{ \partial y_t } x_{t+T} &
+%        \frac{ \partial }{ \partial \theta_t } x_{t+T} &
+%        \frac{ \partial }{ \partial v_t } x_{t+T} &
+%        \frac{ \partial }{ \partial a } x_{t+T} & 
+%        \frac{ \partial }{ \partial \omega } x_{t+T} \\ 
+%        % y
+%        \frac{ \partial }{ \partial x_t } y_{t+T} &
+%        \frac{ \partial }{ \partial y_t } y_{t+T} &
+%        \frac{ \partial }{ \partial \theta_t } y_{t+T} &
+%        \frac{ \partial }{ \partial v_t } y_{t+T} &
+%        \frac{ \partial }{ \partial a } y_{t+T} & 
+%        \frac{ \partial }{ \partial \omega } y_{t+T} \\
+%        % theta
+%        \frac{ \partial }{ \partial x_t } \theta_{t+T} &
+%        \frac{ \partial }{ \partial y_t } \theta_{t+T} &
+%        \frac{ \partial }{ \partial \theta_t } \theta_{t+T} &
+%        \frac{ \partial }{ \partial v_t } \theta_{t+T} &
+%        \frac{ \partial }{ \partial a } \theta_{t+T} & 
+%        \frac{ \partial }{ \partial \omega } \theta_{t+T} \\
+%        % v
+%        \frac{ \partial }{ \partial x_t } v_{t+T} &
+%        \frac{ \partial }{ \partial y_t } v_{t+T} &
+%        \frac{ \partial }{ \partial \theta_t } v_{t+T} &
+%        \frac{ \partial }{ \partial v_t } v_{t+T} &
+%        \frac{ \partial }{ \partial a } v_{t+T} & 
+%        \frac{ \partial }{ \partial \omega } v_{t+T} \\
+%        % a
+%        \frac{ \partial }{ \partial x_t } a_{t+T} &
+%        \frac{ \partial }{ \partial y_t } a_{t+T} &
+%        \frac{ \partial }{ \partial \theta_t } a_{t+T} &
+%        \frac{ \partial }{ \partial v_t } a_{t+T} &
+%        \frac{ \partial }{ \partial a } a_{t+T} & 
+%        \frac{ \partial }{ \partial \omega } a_{t+T} \\
+%        % omega
+%        \frac{ \partial }{ \partial x_t } \omega_{t+T} &
+%        \frac{ \partial }{ \partial y_t } \omega_{t+T} &
+%        \frac{ \partial }{ \partial \theta_t } \omega_{t+T} &
+%        \frac{ \partial }{ \partial v_t } \omega_{t+T} &
+%        \frac{ \partial }{ \partial a } \omega_{t+T} & 
+%        \frac{ \partial }{ \partial \omega } \omega_{t+T} \\
+%    \end{pmatrix}
+%    \\
+    &=
+    \begin{pmatrix}
+        % x
+        1 &
+        0 &
+        \frac{ \partial }{ \partial \theta_t } x_{t+T} &
+        \frac{ \partial }{ \partial v_t } x_{t+T} &
+        \frac{ \partial }{ \partial a } x_{t+T} & 
+        \frac{ \partial }{ \partial \omega } x_{t+T} \\ 
+        % y
+        0 &
+        1 &
+        \frac{ \partial }{ \partial \theta_t } y_{t+T} &
+        \frac{ \partial }{ \partial v_t } y_{t+T} &
+        \frac{ \partial }{ \partial a } y_{t+T} & 
+        \frac{ \partial }{ \partial \omega } y_{t+T} \\
+        0 & 0 & 1 & 0 & 0 & T \\
+        0 & 0 & 0 & 1 & T & 0 \\
+        0 & 0 & 0 & 0 & 1 & 0 \\
+        0 & 0 & 0 & 0 & 0 & 1 \\
+    \end{pmatrix}
+\end{align*}
+
+\subsubsection{$x$-Derivatives}
+\paragraph{Standard}
+\begin{align*}
+    % x-Derivatives
+    \frac{\partial}{\partial \theta_t} x_{t+T} &=
+    \frac{1}{\omega^2}
+    \left[
+        (v_t\omega + a\omega T) \cos(\theta_t+\omega T)
+        - v_t \omega \cos(\theta_t)
+        - a \sin(\theta_t + \omega T)
+        + a \sin(\theta_t)
+    \right] \\
+    &=
+    \frac{1}{\omega^2}
+    \left[
+        a\omega T \cos(\theta_t+\omega T)
+        + v_t\omega \left( \cos(\theta_t+\omega T) - \cos(\theta_t) \right)
+        - a \left( \sin(\theta_t + \omega T) - \sin(\theta_t) \right)
+    \right] \\
+    \\
+    \frac{\partial}{\partial v_t} x_{t+T} &=
+    \frac{1}{\omega^2}
+    \left[
+        \omega \sin(\theta_t + \omega T)
+        - \omega \sin(\theta_t)
+    \right] \\
+    &=
+    \frac{1}{\omega}
+    \left[
+        \sin(\theta_t + \omega T)
+        - \sin(\theta_t)
+    \right] \\
+    \\
+    \frac{\partial}{\partial a} x_{t+T} &=
+    \frac{1}{\omega^2}
+    \left[
+        \omega T \sin(\theta_t + \omega T)
+        +\cos(\theta_t + \omega T)
+        - \cos(\theta_t)
+    \right] \\
+    \\
+    \frac{\partial}{\partial \omega} x_{t+T} &=
+    \frac{1}{\omega^2}
+    \left[
+        aT \sin(\theta_t + \omega T) + a\omega T^2 \cos(\theta_t + \omega T)
+        +v_t ( \sin(\theta_t + \omega T) - \sin(\theta_t) )
+        +v_t\omega T\cos(\theta_t + \omega T)
+        -aT\sin(\theta_t + \omega T)
+    \right]
+    \\
+    &- \frac{2}{\omega^3}
+    \left[
+        a\omega T \sin(\theta_t + \omega T)
+        +v_t\omega ( \sin(\theta_t + \omega T) - \sin(\theta_t) )
+        +a( \cos(\theta_t + \omega T) - \cos(\theta_t) )
+    \right]
+    \\
+    &=
+    \frac{1}{\omega^2}
+    \left[
+        (a\omega T^2+v_t\omega T) \cos(\theta_t + \omega T)
+        +v_t ( \sin(\theta_t + \omega T) - \sin(\theta_t) )
+    \right]
+    - \frac{2}{\omega^3}
+        \left[
+            (a\omega T+v_t\omega) \sin(\theta_t + \omega T)
+            -v_t\omega  \sin(\theta_t)
+            +a( \cos(\theta_t + \omega T) - \cos(\theta_t) )
+        \right]
+    \\
+    &=
+    \frac{1}{\omega^2}
+    \left[
+        (aT+v_t)(\omega T)\cos(\theta_t + \omega T)
+        -(2aT+v_t)\sin(\theta_t + \omega T)
+        +v_t \sin(\theta_t)
+    \right]
+    - \frac{2a}{\omega^3}( \cos(\theta_t + \omega T) - \cos(\theta_t) )
+    \\
+\end{align*}
+\paragraph{Limit $\omega \to 0$}
+\begin{align*}
+    % x-Derivatives
+    \frac{\partial}{\partial \theta_t} x_{t+T} &=
+    -\frac{1}{2}T(2v_t + aT)\sin(\theta_t)
+    \\
+    \frac{\partial}{\partial v_t} x_{t+T} &=
+    T\cos(\theta_t)
+    \\
+    \frac{\partial}{\partial a} x_{t+T} &=
+    \frac{1}{2}T^2\cos(\theta_t)
+    \\
+    \frac{\partial}{\partial \omega} x_{t+T} &=
+    -\frac{1}{6}T^2(3v_t + 2aT)\sin(\theta_t)
+    \\
+\end{align*}
+\subsubsection{$y$-Derivatives}
+\paragraph{Standard}
+\begin{align*}
+    % Y-derivatives
+    \frac{\partial}{\partial \theta_t} y_{t+T} &=
+    \frac{1}{\omega^2}
+    \left[
+        (v_t\omega + a\omega T) \sin(\theta_t+\omega T)
+        - v_t \omega \sin(\theta_t)
+        + a \cos(\theta_t + \omega T)
+        - a \cos(\theta_t)
+    \right] \\
+    &=
+    \frac{1}{\omega^2}
+    \left[
+        a\omega T \sin(\theta_t+\omega T)
+        + v_t\omega \left( \sin(\theta_t+\omega T) - \sin(\theta_t) \right)
+        + a \left( \cos(\theta_t + \omega T) - \cos(\theta_t) \right)
+    \right] \\
+    \\
+    \frac{\partial}{\partial v_t} y_{t+T} &=
+    \frac{1}{\omega^2}
+    \left[
+        -\omega \cos(\theta_t + \omega T)
+        + \omega \cos(\theta_t)
+    \right] \\
+    &=
+    \frac{1}{\omega}
+    \left[
+        - (\cos(\theta_t + \omega T)
+        - \cos(\theta_t))
+    \right] \\
+    \\
+    \frac{\partial}{\partial a} y_{t+T} &=
+    \frac{1}{\omega^2}
+    \left[
+        -\omega T \cos(\theta_t + \omega T)
+        +\sin(\theta_t + \omega T)
+        - \sin(\theta_t)
+    \right] \\
+    \\
+    \frac{\partial}{\partial \omega} y_{t+T} &=
+    \frac{1}{\omega^2}
+    \left[
+        -aT \cos(\theta_t + \omega T)
+        + a\omega T^2 \sin(\theta_t + \omega T)
+        -v_t ( \cos(\theta_t + \omega T) - \cos(\theta_t) )
+        +v_t\omega T \sin(\theta_t + \omega T)
+        +aT\cos(\theta_t + \omega T)
+    \right] \\
+    &-\frac{2}{\omega^3}
+    \left[
+        -a\omega T \cos(\theta_t + \omega T)
+        -v_t\omega ( \cos(\theta_t + \omega T) - \cos(\theta_t) )
+        +a( \sin(\theta_t + \omega T) - \sin(\theta_t) )
+    \right]
+    \\
+    &=
+    \frac{1}{\omega^2}
+    \left[
+        (a\omega T^2+v_t\omega T) \sin(\theta_t + \omega T)
+        -v_t ( \cos(\theta_t + \omega T) - \cos(\theta_t) )
+    \right]
+    -\frac{2}{\omega^3}
+    \left[
+        -(a\omega T+v_t\omega) \cos(\theta_t + \omega T)
+        +v_t\omega \cos(\theta_t)
+        +a( \sin(\theta_t + \omega T) - \sin(\theta_t) )
+    \right]
+    \\
+    &=
+    \frac{1}{\omega^2}
+    \left[
+        (aT+v_t)(\omega T) \sin(\theta_t + \omega T)
+        +(2aT+v_t) \cos(\theta_t + \omega T)
+        -v_t \cos(\theta_t) )
+    \right]
+    -\frac{2a}{\omega^3}
+    ( \sin(\theta_t + \omega T) - \sin(\theta_t) )
+    \\
+\end{align*}
+\paragraph{Limit $\omega \to 0$}
+\begin{align*}
+    % x-Derivatives
+    \frac{\partial}{\partial \theta_t} y_{t+T} &=
+    \frac{1}{2}T(2v_t + aT)\cos(\theta_t)
+    \\
+    \frac{\partial}{\partial v_t} y_{t+T} &=
+    T\sin(\theta_t)
+    \\
+    \frac{\partial}{\partial a} y_{t+T} &=
+    \frac{1}{2}T^2\sin(\theta_t)
+    \\
+    \frac{\partial}{\partial \omega} y_{t+T} &=
+    \frac{1}{6}T^2(3v_t + 2aT)\cos(\theta_t)
+    \\
+\end{align*}
+
+\end{document}
