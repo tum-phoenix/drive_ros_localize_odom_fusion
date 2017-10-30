@@ -11,6 +11,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include <visualization_msgs/Marker.h>
 
 #include "drive_ros_msgs/mav_cc16_IMU.h"
 #include "drive_ros_msgs/mav_cc16_ODOMETER_DELTA.h"
@@ -54,7 +55,7 @@ private:
   void computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_DELTA &odo_msg,
                           const drive_ros_msgs::mav_cc16_IMU &imu_msg);
   void computeFilterStep();
-  void updateCarState();
+  void publishCarState();
 
 
   //! Callback function for subscriber.
@@ -72,7 +73,9 @@ private:
   message_filters::Synchronizer<SyncPolicy> *sync;
   SyncPolicy* policy;
 
-  ros::Publisher time_debug_test;
+  tf2_ros::TransformBroadcaster br;
+  ros::Publisher vis_pub;
+
   ros::NodeHandle pnh_;
 
   Control u;
@@ -87,7 +90,10 @@ private:
   ros::Time currentTimestamp;
   ros::Duration previousDelta;
 
-  bool debug_time;
+  bool debug_rviz;
+  std::string tf_parent;
+  std::string tf_child;
+  int ct;
 
   double odometer_velo_cov_xx;
   double imu_acc_cov_xx;

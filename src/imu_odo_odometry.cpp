@@ -6,8 +6,17 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh):
   int queue_size;
 
   // ros parameters
-  pnh.param<bool>("debug_time", debug_time, true);
   pnh.param<int>("queue_size", queue_size, 5);
+  pnh.param<std::string>("tf_parent", tf_parent, "odometry");
+  pnh.param<std::string>("tf_child", tf_child, "rear_axis_middle_ground");
+  pnh.param<bool>("debug_rviz", debug_rviz, false);
+
+
+  // debug publisher
+  if(debug_rviz)
+  {
+    vis_pub = pnh.advertise<visualization_msgs::Marker>("visualization_marker", 0);
+  }
 
   // init subscribers
   odo_sub = new message_filters::Subscriber<drive_ros_msgs::mav_cc16_ODOMETER_DELTA>(pnh, "odo_in", queue_size);
@@ -21,11 +30,6 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh):
   // reset initial times
   odo_msg.header.stamp = ros::Time(0);
   imu_msg.header.stamp = ros::Time(0);
-
-
-  if(debug_time){
-    time_debug_test = pnh.advertise<drive_ros_msgs::TimeCompare>("/odom/debug_times", 10);
-  }
 
   // Init kalman
   State s;
@@ -112,44 +116,31 @@ void ImuOdoOdometry::syncCallback(const drive_ros_msgs::mav_cc16_ODOMETER_DELTAC
 
 void ImuOdoOdometry::computeOdometry()
 {
-  drive_ros_msgs::mav_cc16_ODOMETER_DELTA local_odo;
-  drive_ros_msgs::mav_cc16_IMU local_imu;
-  ros::Duration diff;
 
   mut.lock();
-  local_odo = odo_msg;
-  local_imu = imu_msg;
+  const drive_ros_msgs::mav_cc16_ODOMETER_DELTA local_odo = odo_msg;
+  const drive_ros_msgs::mav_cc16_IMU local_imu = imu_msg;
   mut.unlock();
 
-  diff = local_imu.header.stamp - local_odo.header.stamp;
-
-  if(debug_time)
-  {
-    ROS_DEBUG_STREAM("diff time:" << diff.toNSec()*pow(10,-3));
-
-    drive_ros_msgs::TimeCompare msg_time;
-    msg_time.header.stamp = ros::Time::now();
-    msg_time.time_1 = local_imu.header.stamp;
-    msg_time.time_2 = local_odo.header.stamp;
-    msg_time.diff_time = diff;
-    time_debug_test.publish(msg_time);
-  }
-
-  if(ros::Time(0) == local_odo.header.stamp)
-  {
-    ROS_WARN("Didn't receive any odometry message yet. Waiting...");
-    return;
-  }
-
-
-  if(ros::Time(0) == local_imu.header.stamp)
-  {
-    ROS_WARN("Didn't receive any IMU message yet. Waiting...");
-    return;
-  }
 
   // set timestamp
   currentTimestamp = local_imu.header.stamp; // both imu and odo should be the same time
+
+
+  // check if timestamps are the same
+  if(local_odo.header.stamp != local_imu.header.stamp)
+  {
+    ROS_WARN("Odometry and IMU timestamps are not the same!");
+    return;
+  }
+
+
+  // check if timestamps are 0
+  if(ros::Time(0) == currentTimestamp)
+  {
+    ROS_WARN("Didn't receive any sensory message yet. Waiting...");
+    return;
+  }
 
   // Compute Measurement Update
   computeMeasurement(local_odo, local_imu);
@@ -158,7 +149,7 @@ void ImuOdoOdometry::computeOdometry()
   computeFilterStep();
 
   // Update car state
-  updateCarState();
+  publishCarState();
 
   // save timestamp
   lastTimestamp = currentTimestamp;
@@ -228,16 +219,23 @@ void ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_
 
 void ImuOdoOdometry::computeFilterStep()
 {
+
+  // check if this is first loop
+  if(ros::Time(0) == lastTimestamp){
+    lastTimestamp = currentTimestamp;
+  }
+
+
   // time since UKF was last called (parameter, masked as control input)
   auto currentDelta = ( currentTimestamp - lastTimestamp );
   if(currentDelta == ros::Duration(0)) {
       // Just predict using previous delta
-      ROS_WARN_STREAM("No new sensor data"
+      ROS_WARN_STREAM("No new sensor data."
           << " last = " << lastTimestamp
           << " current = " << currentTimestamp);
 
   } else if( currentDelta < ros::Duration(0)) {
-      ROS_WARN_STREAM("Jumping backwards in time"
+      ROS_WARN_STREAM("Jumping backwards in time."
           << " last = " << lastTimestamp
           << " current = " << currentTimestamp
           << " delta = " << currentDelta);
@@ -265,16 +263,58 @@ void ImuOdoOdometry::computeFilterStep()
       previousDelta = currentDelta;
   }
 
-  const auto& state = filter.getState();
-
-  ROS_DEBUG_STREAM("newState: " << state);
-  ROS_DEBUG_STREAM("stateCovariance" <<filter.getCovariance());
-
+  ROS_DEBUG_STREAM("stateCovariance" << filter.getCovariance());
 
 }
 
-void ImuOdoOdometry::updateCarState()
+void ImuOdoOdometry::publishCarState()
 {
+  const auto& state = filter.getState();
+  ROS_DEBUG_STREAM("newState: " << state);
+
+  // publish tf
+  geometry_msgs::TransformStamped transformStamped;
+  transformStamped.header.stamp = currentTimestamp;
+  transformStamped.header.frame_id = tf_parent;
+  transformStamped.child_frame_id = tf_child;
+  transformStamped.transform.translation.x = state.x();
+  transformStamped.transform.translation.y = state.y();
+  transformStamped.transform.translation.z = 0;
+  tf2::Quaternion q1;
+  q1.setRPY(0, 0, state.theta());
+  transformStamped.transform.rotation.x =  q1.x();
+  transformStamped.transform.rotation.y =  q1.y();
+  transformStamped.transform.rotation.z =  q1.z();
+  transformStamped.transform.rotation.w =  q1.w();
+  br.sendTransform(transformStamped);
+
+  if(debug_rviz)
+  {
+    ct++;
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = tf_child;
+    marker.header.stamp = currentTimestamp;
+    marker.ns = "odometry";
+    marker.id = ct;
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.pose.position.x = state.x();
+    marker.pose.position.y = state.y();
+    marker.pose.position.z = 0;
+    marker.pose.orientation.x = q1.x();
+    marker.pose.orientation.y = q1.y();
+    marker.pose.orientation.z = q1.z();
+    marker.pose.orientation.w = q1.w();
+    marker.scale.x = 0.1;
+    marker.scale.y = 0.01;
+    marker.scale.z = 0.01;
+    marker.color.a = 1.0;
+    marker.color.r = 1.0;
+    marker.color.g = 0.0;
+    marker.color.b = 0.0;
+    marker.lifetime = ros::Duration(30);
+    vis_pub.publish(marker);
+  }
 
 }
 
