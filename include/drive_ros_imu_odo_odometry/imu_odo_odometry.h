@@ -44,6 +44,9 @@ public:
   typedef CTRA::SystemModel<T> SystemModel;
   typedef Kalman::ExtendedKalmanFilter<State> Filter;
 
+  typedef message_filters::sync_policies::ExactTime<drive_ros_msgs::mav_cc16_ODOMETER_DELTA,
+                                                    drive_ros_msgs::mav_cc16_IMU> SyncPolicy;
+
 
 private:
 
@@ -54,21 +57,21 @@ private:
 
 
   //! Callback function for subscriber.
-  void odoCallback(const drive_ros_msgs::mav_cc16_ODOMETER_DELTAConstPtr &msg);
-  void imuCallback(const drive_ros_msgs::mav_cc16_IMUConstPtr &msg);
+  void syncCallback(const drive_ros_msgs::mav_cc16_ODOMETER_DELTAConstPtr &msg_odo,
+                    const drive_ros_msgs::mav_cc16_IMUConstPtr &msg_imu);
 
   drive_ros_msgs::mav_cc16_ODOMETER_DELTA odo_msg;
   drive_ros_msgs::mav_cc16_IMU imu_msg;
-  std::mutex odo_mut;
-  std::mutex imu_mut;
+
+  std::mutex mut;
 
 
-  ros::Subscriber imu_sub;
-  ros::Subscriber odo_sub;
-
+  message_filters::Subscriber<drive_ros_msgs::mav_cc16_IMU> *imu_sub;
+  message_filters::Subscriber<drive_ros_msgs::mav_cc16_ODOMETER_DELTA> *odo_sub;
+  message_filters::Synchronizer<SyncPolicy> *sync;
+  SyncPolicy* policy;
 
   ros::Publisher time_debug_test;
-
   ros::NodeHandle pnh_;
 
   Control u;
@@ -83,7 +86,6 @@ private:
   ros::Time currentTimestamp;
   ros::Duration previousDelta;
 
-  double max_time_diff;
   bool debug_time;
 
   double odometer_velo_cov_xx;

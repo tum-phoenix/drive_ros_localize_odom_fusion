@@ -3,9 +3,18 @@
 ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh):
   pnh_(pnh)
 {
-  imu_sub = pnh.subscribe("odo_in", 1, &ImuOdoOdometry::imuCallback, this);
-  odo_sub = pnh.subscribe("odo_in", 1, &ImuOdoOdometry::odoCallback, this);
 
+  // init subscribers
+  int queue_size = 10;
+  odo_sub = new message_filters::Subscriber<drive_ros_msgs::mav_cc16_ODOMETER_DELTA>(pnh, "odo_in", queue_size);
+  imu_sub = new message_filters::Subscriber<drive_ros_msgs::mav_cc16_IMU>(pnh, "imu_in", queue_size);
+
+  policy = new SyncPolicy(queue_size);
+
+  sync = new message_filters::Synchronizer<SyncPolicy>(static_cast<SyncPolicy>(*policy), *odo_sub, *imu_sub);
+  sync->registerCallback(boost::bind(&ImuOdoOdometry::syncCallback, this, _1, _2));
+
+  // reset initial times
   odo_msg.header.stamp = ros::Time(0);
   imu_msg.header.stamp = ros::Time(0);
 
@@ -14,7 +23,7 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh):
     time_debug_test = pnh.advertise<drive_ros_msgs::TimeCompare>("/odom/debug_times", 10);
   }
 
-  pnh.param<double>("max_time_diff", max_time_diff, 0.004);
+  // ros parameters
   pnh.param<bool>("debug_time", debug_time, true);
 
   // Init kalman
@@ -87,19 +96,14 @@ ImuOdoOdometry::~ImuOdoOdometry()
 
 }
 
-void ImuOdoOdometry::odoCallback(const drive_ros_msgs::mav_cc16_ODOMETER_DELTAConstPtr &msg)
+void ImuOdoOdometry::syncCallback(const drive_ros_msgs::mav_cc16_ODOMETER_DELTAConstPtr &msg_odo,
+                                  const drive_ros_msgs::mav_cc16_IMUConstPtr &msg_imu)
 {
-  odo_mut.lock();
-  odo_msg = *msg;
-  odo_mut.unlock();
+  mut.lock();
+  odo_msg = *msg_odo;
+  imu_msg = *msg_imu;
+  mut.unlock();
 
-}
-
-void ImuOdoOdometry::imuCallback(const drive_ros_msgs::mav_cc16_IMUConstPtr &msg)
-{
-  imu_mut.lock();
-  imu_msg = *msg;
-  imu_mut.unlock();
 }
 
 
@@ -109,19 +113,16 @@ void ImuOdoOdometry::computeOdometry()
   drive_ros_msgs::mav_cc16_IMU local_imu;
   ros::Duration diff;
 
-  odo_mut.lock();
+  mut.lock();
   local_odo = odo_msg;
-  odo_mut.unlock();
-
-  imu_mut.lock();
   local_imu = imu_msg;
-  imu_mut.unlock();
+  mut.unlock();
 
   diff = local_imu.header.stamp - local_odo.header.stamp;
 
   if(debug_time)
   {
-    ROS_INFO_STREAM("diff time:" << diff.toNSec()*pow(10,-3));
+    ROS_DEBUG_STREAM("diff time:" << diff.toNSec()*pow(10,-3));
 
     drive_ros_msgs::TimeCompare msg_time;
     msg_time.header.stamp = ros::Time::now();
@@ -141,12 +142,6 @@ void ImuOdoOdometry::computeOdometry()
   if(ros::Time(0) == local_imu.header.stamp)
   {
     ROS_WARN("Didn't receive any IMU message yet. Waiting...");
-    return;
-  }
-
-  if(fabs((double long)diff.toSec()) > max_time_diff)
-  {
-    ROS_WARN("Difference between Messages to high. Waiting...");
     return;
   }
 
