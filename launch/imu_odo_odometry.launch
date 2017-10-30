@@ -7,7 +7,9 @@
     <arg name="out_topic" default=""/>
 
     <!-- rate at which the odometry calculation will run (limited by the input topics rates) -->
-    <arg name="rate" default="100"/>
+    <arg name="rate" default="60"/>
+    <!-- size of subscriber and sync policy queues -->
+    <arg name="queue_size" default="5"/>
     <!-- enable time debugging -->
     <arg name="debug_time" default="true"/>
 
@@ -17,6 +19,7 @@
         <remap from="~/imu_in" to="$(arg imu_topic)"/>
 
         <param name="rate" type="int" value="$(arg rate)" />
+        <param name="queue_size" type="int" value="$(arg queue_size)" />
         <param name="debug_time" type="bool" value="$(arg debug_time)" />
         <rosparam command="load" file="$(find drive_ros_imu_odo_odometry)/config/kalman_cov.yaml"/>
         <rosparam command="load" file="$(find drive_ros_imu_odo_odometry)/config/sensor_cov.yaml"/>

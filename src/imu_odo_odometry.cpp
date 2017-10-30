@@ -3,9 +3,13 @@
 ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh):
   pnh_(pnh)
 {
+  int queue_size;
+
+  // ros parameters
+  pnh.param<bool>("debug_time", debug_time, true);
+  pnh.param<int>("queue_size", queue_size, 5);
 
   // init subscribers
-  int queue_size = 10;
   odo_sub = new message_filters::Subscriber<drive_ros_msgs::mav_cc16_ODOMETER_DELTA>(pnh, "odo_in", queue_size);
   imu_sub = new message_filters::Subscriber<drive_ros_msgs::mav_cc16_IMU>(pnh, "imu_in", queue_size);
 
@@ -22,9 +26,6 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh):
   if(debug_time){
     time_debug_test = pnh.advertise<drive_ros_msgs::TimeCompare>("/odom/debug_times", 10);
   }
-
-  // ros parameters
-  pnh.param<bool>("debug_time", debug_time, true);
 
   // Init kalman
   State s;
@@ -104,6 +105,8 @@ void ImuOdoOdometry::syncCallback(const drive_ros_msgs::mav_cc16_ODOMETER_DELTAC
   imu_msg = *msg_imu;
   mut.unlock();
 
+  ROS_DEBUG_STREAM("Got new callback with time: " << msg_imu->header.stamp);
+
 }
 
 
@@ -145,6 +148,9 @@ void ImuOdoOdometry::computeOdometry()
     return;
   }
 
+  // set timestamp
+  currentTimestamp = local_imu.header.stamp; // both imu and odo should be the same time
+
   // Compute Measurement Update
   computeMeasurement(local_odo, local_imu);
 
@@ -153,6 +159,9 @@ void ImuOdoOdometry::computeOdometry()
 
   // Update car state
   updateCarState();
+
+  // save timestamp
+  lastTimestamp = currentTimestamp;
 
 }
 
@@ -223,19 +232,19 @@ void ImuOdoOdometry::computeFilterStep()
   auto currentDelta = ( currentTimestamp - lastTimestamp );
   if(currentDelta == ros::Duration(0)) {
       // Just predict using previous delta
-      ROS_ERROR_STREAM("[time]" << "No Sensor Data "
+      ROS_WARN_STREAM("No new sensor data"
           << " last = " << lastTimestamp
           << " current = " << currentTimestamp);
 
   } else if( currentDelta < ros::Duration(0)) {
-      ROS_ERROR_STREAM("[time]" << "JUMPING BACKWARDS IN TIME!"
+      ROS_WARN_STREAM("Jumping backwards in time"
           << " last = " << lastTimestamp
           << " current = " << currentTimestamp
           << " delta = " << currentDelta);
       return;
   }
 
-  ROS_DEBUG_STREAM("[delta]" << "current: " << currentDelta << " previous: " << previousDelta);
+  ROS_DEBUG_STREAM("[delta]" << "delta current: " << currentDelta << " delta previous: " << previousDelta);
 
   if(ros::Duration(0) == currentDelta) {
       u.dt() = previousDelta.toSec();

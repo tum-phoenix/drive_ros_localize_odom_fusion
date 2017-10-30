@@ -1,6 +1,15 @@
 #include "drive_ros_imu_odo_odometry/imu_odo_odometry.h"
 
+// separate thread to run odometry with a different rate
+void odoThread(ros::Rate r, ImuOdoOdometry* odom)
+{
+  while(ros::ok()){
+    odom->computeOdometry();
+    r.sleep();
+  }
+}
 
+// main function
 int main(int argc, char **argv)
 {
   // Set up ROS.
@@ -21,11 +30,12 @@ int main(int argc, char **argv)
   ROS_INFO("IMU & Odometer odometry node succesfully initialized");
 
 
+  // start odometry thread
+  std::thread odo (odoThread, r, &odom);
+
   // forever loop
   while(ros::ok()){
-    ros::spinOnce();
-    odom.computeOdometry();
-    r.sleep();
+    ros::spin();
   }
 
   return 0;
