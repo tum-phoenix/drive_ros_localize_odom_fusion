@@ -7,6 +7,7 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh):
 
   // ros parameters
   pnh.param<int>("queue_size", queue_size, 5);
+  pnh.param<int>("queue_size", steps_to_predict_without_data, 5);
   pnh.param<std::string>("tf_parent", tf_parent, "odometry");
   pnh.param<std::string>("tf_child", tf_child, "rear_axis_middle_ground");
   pnh.param<bool>("debug_rviz", debug_rviz, false);
@@ -91,6 +92,10 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh):
     ROS_ERROR("Error loading sensor covariances!");
     throw std::runtime_error("Error loading parameters");
   }
+
+
+  // initialize vars
+  ct_no_data = 0;
 
 }
 
@@ -244,13 +249,23 @@ void ImuOdoOdometry::computeFilterStep()
 
   ROS_DEBUG_STREAM("[delta]" << "delta current: " << currentDelta << " delta previous: " << previousDelta);
 
-  if(ros::Duration(0) == currentDelta) {
+  if(ros::Duration(0) == currentDelta && ct_no_data < steps_to_predict_without_data) {
+
+      // increase no data counter
+      ct_no_data++;
+
+      // use time delta from previous step
       u.dt() = previousDelta.toSec();
 
       // Prediction only
       // predict state for current time-step using the kalman filter
       filter.predict(sys, u);
-  } else {
+  } else if(ros::Duration(0) != currentDelta) {
+
+      // new data available, reset counter
+      ct_no_data = 0;
+
+      // get current time delta
       u.dt() = currentDelta.toSec();
 
       // Prediction + update

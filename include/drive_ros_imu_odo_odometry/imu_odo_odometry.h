@@ -90,6 +90,9 @@ private:
   ros::Time currentTimestamp;
   ros::Duration previousDelta;
 
+  int ct_no_data;
+  int steps_to_predict_without_data;
+
   bool debug_rviz;
   std::string tf_parent;
   std::string tf_child;
