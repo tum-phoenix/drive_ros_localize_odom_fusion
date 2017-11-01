@@ -13,18 +13,9 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf2
   tf2_ros
+  kalman
 )
 
-## System dependencies are found with CMake's conventions
-set(KALMAN_BUILD_TESTING off)
-set(KALMAN_BUILD_EXAMPLES off)
-set(KALMAN_SRC_DIR ${CMAKE_SOURCE_DIR}/drive_ros_config/lib/kalman)
-set(Kalman_DIR ${CMAKE_CURRENT_BINARY_DIR}/kalman)
-add_subdirectory(${KALMAN_SRC_DIR} ${Kalman_DIR})
-find_package(Kalman)
-
-# set Kalman include dirs manually, because it somehow doesn't install the header files
-set(kalman_INCLUDE_DIRS ${KALMAN_SRC_DIR}/include)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -112,7 +103,7 @@ set(kalman_INCLUDE_DIRS ${KALMAN_SRC_DIR}/include)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
+  INCLUDE_DIRS include
 #  LIBRARIES drive_ros_imu_odo_odometry
   CATKIN_DEPENDS drive_ros_msgs roscpp std_msgs tf2 tf2_ros
 #  DEPENDS system_lib
@@ -127,7 +118,6 @@ catkin_package(
 include_directories(
  include
   ${catkin_INCLUDE_DIRS}
-  ${kalman_INCLUDE_DIRS}
   ${Eigen3_INCLUDE_DIR}
 )
 
