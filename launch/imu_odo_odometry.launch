@@ -9,6 +9,10 @@
     <!-- size of subscriber and sync policy queues -->
     <arg name="queue_size" default="5"/>
 
+    <!-- define nice value of process (lower means higher priority) [-20;19] -->
+    <!-- more infos: https://en.wikipedia.org/wiki/Nice_(Unix) -->
+    <arg name="nice_val" default="-2"/>
+
     <!-- tf parent frame of published tf -->
     <arg name="tf_parent" default="odometry"/>
     <!-- tf child frame of published tf -->
@@ -18,7 +22,8 @@
     <arg name="debug_rviz" default="true" />
 
 
-    <node name="imu_ros_odometry" pkg="drive_ros_imu_odo_odometry" type="drive_ros_imu_odo_odometry_node" output="screen">
+    <node name="imu_ros_odometry" pkg="drive_ros_imu_odo_odometry" type="drive_ros_imu_odo_odometry_node"
+          output="screen" launch-prefix="nice -n $(arg nice_val)" >
         <remap from="~/odo_in" to="$(arg odo_topic)"/>
         <remap from="~/imu_in" to="$(arg imu_topic)"/>
         <param name="rate" type="int" value="$(arg rate)" />

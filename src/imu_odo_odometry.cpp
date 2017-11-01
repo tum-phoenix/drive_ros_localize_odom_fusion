@@ -292,7 +292,7 @@ void ImuOdoOdometry::publishCarState()
   {
     ct++;
     visualization_msgs::Marker marker;
-    marker.header.frame_id = tf_child;
+    marker.header.frame_id = tf_parent;
     marker.header.stamp = currentTimestamp;
     marker.ns = "odometry";
     marker.id = ct;
@@ -305,10 +305,10 @@ void ImuOdoOdometry::publishCarState()
     marker.pose.orientation.y = q1.y();
     marker.pose.orientation.z = q1.z();
     marker.pose.orientation.w = q1.w();
-    marker.scale.x = 0.1;
-    marker.scale.y = 0.01;
-    marker.scale.z = 0.01;
-    marker.color.a = 1.0;
+    marker.scale.x = 0.05;
+    marker.scale.y = 0.005;
+    marker.scale.z = 0.005;
+    marker.color.a = 0.5;
     marker.color.r = 1.0;
     marker.color.g = 0.0;
     marker.color.b = 0.0;
