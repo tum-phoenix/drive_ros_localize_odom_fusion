@@ -23,6 +23,10 @@
     <!-- debug rviz marker -->
     <arg name="debug_rviz" default="true" />
 
+    <!-- debug state to file -->
+    <arg name="debug_file" default="true" />
+    <arg name="debug_file_path" default="/home/fabianhanke/Downloads/odom_debug.csv" />
+
 
     <node name="imu_ros_odometry" pkg="drive_ros_imu_odo_odometry" type="drive_ros_imu_odo_odometry_node"
           output="screen" launch-prefix="nice -n $(arg nice_val)" >
@@ -34,6 +38,8 @@
         <param name="tf_parent" type="str" value="$(arg tf_parent)" />
         <param name="tf_child" type="str" value="$(arg tf_child)" />
         <param name="debug_rviz" type="bool" value="$(arg debug_rviz)" />
+        <param name="debug_file" type="bool" value ="$(arg debug_file)" />
+        <param name="debug_file_path" type="str" value ="$(arg debug_file_path)" />
         <rosparam command="load" file="$(find drive_ros_imu_odo_odometry)/config/kalman_cov.yaml"/>
         <rosparam command="load" file="$(find drive_ros_imu_odo_odometry)/config/sensor_cov.yaml"/>
     </node>

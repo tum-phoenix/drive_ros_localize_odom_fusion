@@ -1,22 +1,47 @@
 #include "drive_ros_imu_odo_odometry/imu_odo_odometry.h"
 
+// constructor (initialize everything)
 ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh):
   pnh_(pnh)
 {
+  // queue for subscribers and sync policy
   int queue_size;
+
+  // file path
+  std::string debug_file_path;
 
   // ros parameters
   pnh.param<int>("queue_size", queue_size, 5);
   pnh.param<int>("queue_size", steps_to_predict_without_data, 5);
   pnh.param<std::string>("tf_parent", tf_parent, "odometry");
   pnh.param<std::string>("tf_child", tf_child, "rear_axis_middle_ground");
+  pnh.param<std::string>("debug_file_path", debug_file_path, "~/debug.csv");
   pnh.param<bool>("debug_rviz", debug_rviz, false);
-
+  pnh.param<bool>("debug_file", debug_file, false);
 
   // debug publisher
   if(debug_rviz)
   {
     vis_pub = pnh.advertise<visualization_msgs::Marker>("visualization_marker", 0);
+  }
+
+  // debug file
+  if(debug_file)
+  {
+     file_log.open( debug_file_path );
+     file_log << "timestamp,"
+              << "delta,"
+              << "state_x,"
+              << "state_y,"
+              << "state_theta,"
+              << "state_v,"
+              << "state_a,"
+              << "state_omega,"
+              << "meas_ax,"
+              << "meas_ay,"
+              << "meas_v,"
+              << "meas_omega"
+              << std::endl;
   }
 
   // init subscribers
@@ -103,7 +128,7 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh):
 
 ImuOdoOdometry::~ImuOdoOdometry()
 {
-
+  file_log.close();
 }
 
 void ImuOdoOdometry::syncCallback(const drive_ros_msgs::mav_cc16_ODOMETER_DELTAConstPtr &msg_odo,
@@ -151,10 +176,11 @@ void ImuOdoOdometry::computeOdometry()
   computeMeasurement(local_odo, local_imu);
 
   // Compute Kalman filter step
-  computeFilterStep();
-
-  // Update car state
-  publishCarState();
+  if(computeFilterStep())
+  {
+    // Update car state
+    publishCarState();
+  }
 
   // save timestamp
   lastTimestamp = currentTimestamp;
@@ -222,7 +248,7 @@ void ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_
   }
 }
 
-void ImuOdoOdometry::computeFilterStep()
+bool ImuOdoOdometry::computeFilterStep()
 {
 
   // check if this is first loop
@@ -232,7 +258,7 @@ void ImuOdoOdometry::computeFilterStep()
 
 
   // time since UKF was last called (parameter, masked as control input)
-  auto currentDelta = ( currentTimestamp - lastTimestamp );
+  currentDelta = ( currentTimestamp - lastTimestamp );
   if(currentDelta == ros::Duration(0)) {
       // Just predict using previous delta
       ROS_WARN_STREAM("No new sensor data."
@@ -244,7 +270,7 @@ void ImuOdoOdometry::computeFilterStep()
           << " last = " << lastTimestamp
           << " current = " << currentTimestamp
           << " delta = " << currentDelta);
-      return;
+      return false;
   }
 
   ROS_DEBUG_STREAM("[delta]" << "delta current: " << currentDelta << " delta previous: " << previousDelta);
@@ -276,10 +302,15 @@ void ImuOdoOdometry::computeFilterStep()
 
       // Update previous delta
       previousDelta = currentDelta;
+  } else {
+
+    // we didn't get new data for a longer time
+    return false;
   }
 
   ROS_DEBUG_STREAM("stateCovariance" << filter.getCovariance());
 
+  return true;
 }
 
 void ImuOdoOdometry::publishCarState()
@@ -303,6 +334,26 @@ void ImuOdoOdometry::publishCarState()
   transformStamped.transform.rotation.w =  q1.w();
   br.sendTransform(transformStamped);
 
+
+  // debug to file
+  if(debug_file)
+  {
+     file_log << currentTimestamp         << ","
+              << currentDelta             << ","
+              << state.x()                << ","
+              << state.y()                << ","
+              << state.theta()            << ","
+              << state.v()                << ","
+              << state.a()                << ","
+              << state.omega()            << ","
+              << z.ax()                   << ","
+              << z.ay()                   << ","
+              << z.v()                    << ","
+              << z.omega()
+              << std::endl;
+  }
+
+  // debug to rviz
   if(debug_rviz)
   {
     ct++;

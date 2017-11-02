@@ -1,22 +1,27 @@
 #ifndef IMUODOODOMETRY_H
 #define IMUODOODOMETRY_H
 
+// system
 #include <mutex>
 #include <thread>
+#include <fstream>
+
+// ros
 #include <ros/ros.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2/LinearMath/Quaternion.h>
-#include <tf/transform_datatypes.h>
-#include <geometry_msgs/TransformStamped.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
-#include <visualization_msgs/Marker.h>
 
+// ros messages
+#include <visualization_msgs/Marker.h>
+#include <geometry_msgs/TransformStamped.h>
 #include "drive_ros_msgs/mav_cc16_IMU.h"
 #include "drive_ros_msgs/mav_cc16_ODOMETER_DELTA.h"
 #include "drive_ros_msgs/TimeCompare.h"
 
+// kalman
 #include <kalman/UnscentedKalmanFilter.hpp>
 #include <kalman/ExtendedKalmanFilter.hpp>
 #include "measurement_model.h"
@@ -52,52 +57,69 @@ public:
 
 private:
 
+  // collect data and prepare computing
   void computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_DELTA &odo_msg,
                           const drive_ros_msgs::mav_cc16_IMU &imu_msg);
-  void computeFilterStep();
+
+  // compute one kalman step
+  bool computeFilterStep();
+
+  // publish data
   void publishCarState();
 
 
-  //! Callback function for subscriber.
+  // Callback function for subscriber
   void syncCallback(const drive_ros_msgs::mav_cc16_ODOMETER_DELTAConstPtr &msg_odo,
                     const drive_ros_msgs::mav_cc16_IMUConstPtr &msg_imu);
 
-  drive_ros_msgs::mav_cc16_ODOMETER_DELTA odo_msg;
-  drive_ros_msgs::mav_cc16_IMU imu_msg;
-
-  std::mutex mut;
 
 
+  // ROS subscriber + synchronizer
   message_filters::Subscriber<drive_ros_msgs::mav_cc16_IMU> *imu_sub;
   message_filters::Subscriber<drive_ros_msgs::mav_cc16_ODOMETER_DELTA> *odo_sub;
   message_filters::Synchronizer<SyncPolicy> *sync;
   SyncPolicy* policy;
 
+  // ROS publisher or broadcaster
   tf2_ros::TransformBroadcaster br;
   ros::Publisher vis_pub;
 
+
   ros::NodeHandle pnh_;
 
+  // ROS local message storage + mutex
+  drive_ros_msgs::mav_cc16_ODOMETER_DELTA odo_msg;
+  drive_ros_msgs::mav_cc16_IMU imu_msg;
+  std::mutex mut;
+
+  // kalman filter stuff
   Control u;
   Measurement z;
-
   SystemModel sys;
   MeasurementModel mm;
-
   Filter filter;
 
+  // ROS times and durations
   ros::Time lastTimestamp;
   ros::Time currentTimestamp;
   ros::Duration previousDelta;
+  ros::Duration currentDelta;
 
-  int ct_no_data;
+  // parameter
   int steps_to_predict_without_data;
-
   bool debug_rviz;
+  bool debug_file;
   std::string tf_parent;
   std::string tf_child;
+
+  // counter
+  int ct_no_data;
   int ct;
 
+  // debug to file
+  std::ofstream file_log;
+
+  // sensor covariance parameter
   double odometer_velo_cov_xx;
   double imu_acc_cov_xx;
   double imu_acc_cov_yy;
@@ -108,8 +130,6 @@ private:
   double imu_gyro_bias_x;
   double imu_gyro_bias_y;
   double imu_gyro_bias_z;
-
-
 
 };
 
