@@ -27,9 +27,11 @@
     <arg name="debug_file" default="true" />
     <arg name="debug_file_path" default="/home/fabianhanke/Downloads/odom_debug.csv" />
 
+    <!-- forward output to [screen|log] -->
+    <arg name="output" default="screen"/>
 
     <node name="imu_ros_odometry" pkg="drive_ros_imu_odo_odometry" type="drive_ros_imu_odo_odometry_node"
-          output="screen" launch-prefix="nice -n $(arg nice_val)" >
+          output="$(arg output)" launch-prefix="nice -n $(arg nice_val)" >
         <remap from="~/odo_in" to="$(arg odo_topic)"/>
         <remap from="~/imu_in" to="$(arg imu_topic)"/>
         <param name="rate" type="int" value="$(arg rate)" />
