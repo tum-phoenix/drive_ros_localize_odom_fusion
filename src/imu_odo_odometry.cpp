@@ -153,10 +153,6 @@ void ImuOdoOdometry::computeOdometry()
   mut.unlock();
 
 
-  // set timestamp
-  currentTimestamp = local_imu.header.stamp; // both imu and odo should be the same time
-
-
   // check if timestamps are the same
   if(local_odo.header.stamp != local_imu.header.stamp)
   {
@@ -164,13 +160,15 @@ void ImuOdoOdometry::computeOdometry()
     return;
   }
 
-
   // check if timestamps are 0
-  if(ros::Time(0) == currentTimestamp)
+  if(ros::Time(0) == local_imu.header.stamp)
   {
     ROS_WARN("Didn't receive any sensory message yet. Waiting...");
     return;
   }
+
+  // set timestamp
+  currentTimestamp = local_imu.header.stamp; // both imu and odo should be the same time
 
   // Compute Measurement Update
   computeMeasurement(local_odo, local_imu);
