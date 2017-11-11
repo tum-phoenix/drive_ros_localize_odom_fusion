@@ -1,8 +1,8 @@
 #include "drive_ros_imu_odo_odometry/imu_odo_odometry.h"
 
 // constructor (initialize everything)
-ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh):
-  pnh_(pnh)
+ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh, ros::Rate& r):
+  pnh_(pnh), rate(r)
 {
   // queue for subscribers and sync policy
   int queue_size;
@@ -11,13 +11,16 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh):
   std::string debug_file_path;
 
   // ros parameters
-  pnh.param<int>("queue_size", queue_size, 5);
-  pnh.param<int>("queue_size", steps_to_predict_without_data, 5);
-  pnh.param<std::string>("tf_parent", tf_parent, "odometry");
-  pnh.param<std::string>("tf_child", tf_child, "rear_axis_middle_ground");
-  pnh.param<std::string>("debug_file_path", debug_file_path, "~/debug.csv");
-  pnh.param<bool>("debug_rviz", debug_rviz, false);
-  pnh.param<bool>("debug_file", debug_file, false);
+  pnh_.param<int>("queue_size", queue_size, 5);
+  pnh_.param<std::string>("tf_parent", tf_parent, "odometry");
+  pnh_.param<std::string>("tf_child", tf_child, "rear_axis_middle_ground");
+  pnh_.param<std::string>("debug_file_path", debug_file_path, "~/debug.csv");
+  pnh_.param<bool>("debug_rviz", debug_rviz, false);
+  pnh_.param<bool>("debug_file", debug_file, false);
+
+  float reset_filter_thres_fl;
+  pnh_.param<float>("reset_filter_thres", reset_filter_thres_fl, 0.5);
+  reset_filter_thres = ros::Duration(reset_filter_thres_fl);
 
   // debug publisher
   if(debug_rviz)
@@ -53,15 +56,35 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh):
   sync = new message_filters::Synchronizer<SyncPolicy>(static_cast<SyncPolicy>(*policy), *odo_sub, *imu_sub);
   sync->registerCallback(boost::bind(&ImuOdoOdometry::syncCallback, this, _1, _2));
 
-  // reset initial times
-  odo_msg.header.stamp = ros::Time(0);
-  imu_msg.header.stamp = ros::Time(0);
+  // initialize Kalman filter state & covariances
+  initFilterState();
+  initFilterCov();
+
+}
+
+
+ImuOdoOdometry::~ImuOdoOdometry()
+{
+  file_log.close();
+}
+
+// initialize Filter State
+void ImuOdoOdometry::initFilterState()
+{
+  ROS_INFO("Reset Kalman State");
 
   // Init kalman
   State s;
   s.setZero();
   filter.init(s);
 
+  // reset no data counter
+  ct_no_data = 0;
+}
+
+// initialize Filter covariances
+void ImuOdoOdometry::initFilterCov()
+{
   // Set initial state covariance
   Kalman::Covariance<State> stateCov;
   stateCov.setZero();
@@ -118,19 +141,14 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh):
     throw std::runtime_error("Error loading parameters");
   }
 
-
-  // initialize vars
-  ct_no_data = 0;
+  // reset initial times
+  odo_msg.header.stamp = ros::Time(0);
+  imu_msg.header.stamp = ros::Time(0);
+  lastTimestamp = ros::Time(0);
 
 }
 
-
-
-ImuOdoOdometry::~ImuOdoOdometry()
-{
-  file_log.close();
-}
-
+// callback if both odo and imu messages with same timestamp have arrived
 void ImuOdoOdometry::syncCallback(const drive_ros_msgs::mav_cc16_ODOMETER_DELTAConstPtr &msg_odo,
                                   const drive_ros_msgs::mav_cc16_IMUConstPtr &msg_imu)
 {
@@ -144,6 +162,7 @@ void ImuOdoOdometry::syncCallback(const drive_ros_msgs::mav_cc16_ODOMETER_DELTAC
 }
 
 
+// this function is being called in a separate thread at a constant rate
 void ImuOdoOdometry::computeOdometry()
 {
 
@@ -163,21 +182,40 @@ void ImuOdoOdometry::computeOdometry()
   // check if timestamps are 0
   if(ros::Time(0) == local_imu.header.stamp)
   {
-    ROS_WARN("Didn't receive any sensory message yet. Waiting...");
+    ROS_WARN("Didn't receive any new sensor message yet. Waiting...");
     return;
   }
 
   // set timestamp
   currentTimestamp = local_imu.header.stamp; // both imu and odo should be the same time
 
-  // Compute Measurement Update
-  computeMeasurement(local_odo, local_imu);
 
-  // Compute Kalman filter step
-  if(computeFilterStep())
+  // check if this is first loop or reinitialized
+  if(ros::Time(0) == lastTimestamp){
+    lastTimestamp = currentTimestamp;
+    currentDelta = ros::Duration(0);
+  }else{
+    currentDelta = ( currentTimestamp - lastTimestamp );
+  }
+
+
+  // do all the kalman filter magic
+  if(
+       // 1. compute measurement update
+       computeMeasurement(local_odo, local_imu) &&
+
+       // 2. compute Kalman filter step
+       computeFilterStep() &&
+
+       // 3. publish car state
+       publishCarState()
+     )
   {
-    // Update car state
-    publishCarState();
+
+  }else{
+
+    // something went wrong reinitialize Kalman Filter covariances
+    initFilterCov();
   }
 
   // save timestamp
@@ -185,136 +223,158 @@ void ImuOdoOdometry::computeOdometry()
 
 }
 
-void ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_DELTA &odo_msg,
+bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_DELTA &odo_msg,
                                         const drive_ros_msgs::mav_cc16_IMU &imu_msg)
 {
-  T v = 0;
-  T ax = 0;
-  T ay = 0;
-  T omega = 0;
-
-  T axVar = 0;
-  T ayVar = 0;
-  T vVar = 0;
-  T omegaVar = 0;
-
-  v = odo_msg.velocity.x;
-  vVar = odometer_velo_cov_xx;
-
-  // TODO: remove acceleration orientation hack
-  omega = imu_msg.gyro.z;
-  ax    = GRAVITY * imu_msg.acc.x;
-  ay    = GRAVITY * imu_msg.acc.y;
-
-  omegaVar = imu_gyro_cov_zz;
-  axVar    = GRAVITY * GRAVITY * imu_acc_cov_xx;
-  ayVar    = GRAVITY * GRAVITY * imu_acc_cov_yy;
-
-
-  // Set actual measurement vector
-  //TODO fail, if v gets smaller, the filter fails!
-  z.v() = v;
-  z.ax() = ax;
-  z.ay() = ay;
-  z.omega() = omega;
-
-
-  // Set measurement covariances
-  Kalman::Covariance< Measurement > cov;
+  // create measurement covariances
+  Kalman::Covariance<Measurement> cov;
   cov.setZero();
-  cov(Measurement::AX,    Measurement::AX)    = axVar;
-  cov(Measurement::AY,    Measurement::AY)    = ayVar;
-  cov(Measurement::V,     Measurement::V)     = vVar;
-  cov(Measurement::OMEGA, Measurement::OMEGA) = omegaVar;
-  mm.setCovariance(cov);
 
-  ROS_DEBUG_STREAM("measurementVector: " << z);
-  ROS_DEBUG_STREAM("measurementCovariance:" << mm.getCovariance());
+  // time jump to big -> reset filter
+  if(std::abs(currentDelta.toNSec()) > reset_filter_thres.toNSec()){
 
-  //Error checking
-  if(omega != omega){
-      throw std::runtime_error("omega is NAN");
-  }
-  if(ay != ay){
-      throw std::runtime_error("ay is NAN");
-  }
-  if(ax != ax){
-      throw std::runtime_error("ax is NAN");
-  }
-  if(v != v){
-      throw std::runtime_error("v is NAN");
-  }
-}
+    ROS_ERROR_STREAM("Delta Time Threshold exceeded. Reset Filter."
+        << " delta = " << currentDelta
+        << " thres = " << reset_filter_thres);
 
-bool ImuOdoOdometry::computeFilterStep()
-{
+    // time jumps bigger than 1 sec -> also reset Kalman state
+    if(std::abs(currentDelta.sec) > 1)
+    {
+      initFilterState();
+    }
 
-  // check if this is first loop
-  if(ros::Time(0) == lastTimestamp){
-    lastTimestamp = currentTimestamp;
-  }
+    return false;
 
-
-  // time since UKF was last called (parameter, masked as control input)
-  currentDelta = ( currentTimestamp - lastTimestamp );
-  if(currentDelta == ros::Duration(0)) {
-      // Just predict using previous delta
+  // no sensor update :(
+  } else if(currentDelta == ros::Duration(0)) {
+      // Just predict using previous delta with low covariances
       ROS_WARN_STREAM("No new sensor data."
           << " last = " << lastTimestamp
           << " current = " << currentTimestamp);
 
+      // increase no data counter
+      ct_no_data++;
+
+      // increase covariances because we have to use old sensor data
+      cov(Measurement::AX,    Measurement::AX)    = imu_acc_cov_xx        * (ct_no_data+1);
+      cov(Measurement::AY,    Measurement::AY)    = imu_acc_cov_yy        * (ct_no_data+1);
+      cov(Measurement::V,     Measurement::V)     = odometer_velo_cov_xx  * (ct_no_data+1);
+      cov(Measurement::OMEGA, Measurement::OMEGA) = imu_gyro_cov_zz       * (ct_no_data+1);
+
+
+  // jumping back in time
   } else if( currentDelta < ros::Duration(0)) {
-      ROS_WARN_STREAM("Jumping backwards in time."
-          << " last = " << lastTimestamp
-          << " current = " << currentTimestamp
+      ROS_WARN_STREAM("Jumping back in time."
           << " delta = " << currentDelta);
-      return false;
-  }
 
-  ROS_DEBUG_STREAM("[delta]" << "delta current: " << currentDelta << " delta previous: " << previousDelta);
-
-  if(ros::Duration(0) == currentDelta && ct_no_data < steps_to_predict_without_data) {
+      // reset times
+      currentTimestamp = lastTimestamp;
+      currentDelta = ros::Duration(0);
 
       // increase no data counter
       ct_no_data++;
 
-      // use time delta from previous step
-      u.dt() = previousDelta.toSec();
+      // increase covariances because there is something fishy
+      cov(Measurement::AX,    Measurement::AX)    = imu_acc_cov_xx        * (ct_no_data+1);
+      cov(Measurement::AY,    Measurement::AY)    = imu_acc_cov_yy        * (ct_no_data+1);
+      cov(Measurement::V,     Measurement::V)     = odometer_velo_cov_xx  * (ct_no_data+1);
+      cov(Measurement::OMEGA, Measurement::OMEGA) = imu_gyro_cov_zz       * (ct_no_data+1);
 
-      // Prediction only
-      // predict state for current time-step using the kalman filter
-      filter.predict(sys, u);
-  } else if(ros::Duration(0) != currentDelta) {
+  // everything is ok
+  }else{
 
-      // new data available, reset counter
-      ct_no_data = 0;
+    // correct data available, reset counter
+    ct_no_data = 0;
 
-      // get current time delta
-      u.dt() = currentDelta.toSec();
+    // if current Delta is bigger than cycle time -> make error bigger
+    // TODO: investigate a little bit more on this
+    double factor_err = currentDelta.toSec() / rate.expectedCycleTime().toSec();
+    ROS_DEBUG_STREAM("error factor: " << factor_err);
 
-      // Prediction + update
-      // predict state for current time-step using the kalman filter
-      filter.predict(sys, u);
-      // perform measurement update
-      filter.update(mm, z);
+    cov(Measurement::AX,    Measurement::AX)    = imu_acc_cov_xx        * factor_err;
+    cov(Measurement::AY,    Measurement::AY)    = imu_acc_cov_yy        * factor_err;
+    cov(Measurement::V,     Measurement::V)     = odometer_velo_cov_xx  * factor_err;
+    cov(Measurement::OMEGA, Measurement::OMEGA) = imu_gyro_cov_zz       * factor_err;
 
-      // Update previous delta
-      previousDelta = currentDelta;
-  } else {
-
-    // we didn't get new data for a longer time
-    return false;
   }
 
-  ROS_DEBUG_STREAM("stateCovariance" << filter.getCovariance());
+  // Set measurement covariances
+  mm.setCovariance(cov);
+
+  // set measurements vector z
+  z.v()     = odo_msg.velocity.x;
+  z.ax()    = imu_msg.acc.x;
+  z.ay()    = imu_msg.acc.y;
+  z.omega() = imu_msg.gyro.z;
+
+  ROS_DEBUG_STREAM("delta current: " << currentDelta << " delta previous: " << previousDelta);
+  ROS_DEBUG_STREAM("measurementVector: " << z);
+  ROS_DEBUG_STREAM("measurementCovariance:" << mm.getCovariance());
+
+  if( std::isnan(cov(Measurement::AX,    Measurement::AX)   ) ||
+      std::isnan(cov(Measurement::AY,    Measurement::AY)   ) ||
+      std::isnan(cov(Measurement::V,     Measurement::V)    ) ||
+      std::isnan(cov(Measurement::OMEGA, Measurement::OMEGA)) ||
+      std::isnan(z.v()                                      ) ||
+      std::isnan(z.ax()                                     ) ||
+      std::isnan(z.ay()                                     ) ||
+      std::isnan(z.omega()) )
+  {
+    ROS_ERROR("Measurement is NAN! Reinit covariances.");
+    return false;
+  }
 
   return true;
 }
 
-void ImuOdoOdometry::publishCarState()
+bool ImuOdoOdometry::computeFilterStep()
+{
+  // no new data avialable
+  if(ros::Duration(0) == currentDelta) {
+      // use time delta from previous step
+      u.dt() = previousDelta.toSec();
+
+  // new data available
+  } else if(ros::Duration(0) != currentDelta) {
+
+      // get current time delta
+      u.dt() = currentDelta.toSec();
+
+      // Update previous delta
+      previousDelta = currentDelta;
+
+  }
+
+  // predict state for current time-step using the kalman filter
+  filter.predict(sys, u);
+
+  // perform measurement update
+  filter.update(mm, z);
+
+  return true;
+}
+
+bool ImuOdoOdometry::publishCarState()
 {
   const auto& state = filter.getState();
+  ROS_DEBUG_STREAM("stateCovariance" << filter.getCovariance());
   ROS_DEBUG_STREAM("newState: " << state);
+
+  // check if nan
+  if( std::isnan(state.x())       ||
+      std::isnan(state.y())       ||
+      std::isnan(state.theta())   ||
+      std::isnan(state.v())       ||
+      std::isnan(state.a())       ||
+      std::isnan(state.omega())   ||
+      std::isnan(z.omega()) )
+  {
+    ROS_ERROR("Measurement is NAN! Reinit Kalman.");
+    initFilterState();
+    return false;
+
+  }
+
 
   // publish tf
   geometry_msgs::TransformStamped transformStamped;
@@ -376,9 +436,11 @@ void ImuOdoOdometry::publishCarState()
     marker.color.r = 1.0;
     marker.color.g = 0.0;
     marker.color.b = 0.0;
-    marker.lifetime = ros::Duration(30);
+    marker.lifetime = ros::Duration(60);
     vis_pub.publish(marker);
   }
+
+  return true;
 
 }
 

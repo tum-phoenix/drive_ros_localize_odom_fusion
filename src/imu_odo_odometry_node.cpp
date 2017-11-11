@@ -26,12 +26,12 @@ int main(int argc, char **argv)
   ros::Duration(2.0).sleep();
 #endif
 
-  ImuOdoOdometry odom(pnh);
+  ImuOdoOdometry odom(pnh, r);
   ROS_INFO("IMU & Odometer odometry node succesfully initialized");
 
 
   // start odometry thread
-  std::thread odo (odoThread, r, &odom);
+  std::thread odo(odoThread, r, &odom);
 
   // forever loop
   while(ros::ok()){

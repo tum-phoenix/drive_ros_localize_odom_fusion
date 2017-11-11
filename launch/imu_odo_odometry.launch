@@ -8,8 +8,8 @@
     <arg name="rate" default="80"/>
     <!-- size of subscriber and sync policy queues -->
     <arg name="queue_size" default="5"/>
-    <!-- this number of steps can be predicted without getting new data -->
-    <arg name="steps_to_predict_without_data" default="3"/>
+    <!-- if this time difference between measurments exceeds this threshold [sec] -> reset the filter -->
+    <arg name="reset_filter_thres" default="0.1"/>
 
     <!-- define nice value of process (lower means higher priority) [-20;19] -->
     <!-- more infos: https://en.wikipedia.org/wiki/Nice_(Unix) -->
@@ -36,7 +36,7 @@
         <remap from="~/imu_in" to="$(arg imu_topic)"/>
         <param name="rate" type="int" value="$(arg rate)" />
         <param name="queue_size" type="int" value="$(arg queue_size)" />
-        <param name="steps_to_predict_without_data" type="int" value="$(arg steps_to_predict_without_data)" />
+        <param name="reset_filter_thres" type="double" value="$(arg reset_filter_thres)" />
         <param name="tf_parent" type="str" value="$(arg tf_parent)" />
         <param name="tf_child" type="str" value="$(arg tf_child)" />
         <param name="debug_rviz" type="bool" value="$(arg debug_rviz)" />

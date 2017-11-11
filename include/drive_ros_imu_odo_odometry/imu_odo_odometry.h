@@ -2,6 +2,7 @@
 #define IMUODOODOMETRY_H
 
 // system
+#include <cmath>
 #include <mutex>
 #include <thread>
 #include <fstream>
@@ -22,19 +23,16 @@
 #include "drive_ros_msgs/TimeCompare.h"
 
 // kalman
-#include <kalman/UnscentedKalmanFilter.hpp>
 #include <kalman/ExtendedKalmanFilter.hpp>
 #include "measurement_model.h"
 #include "system_model.h"
-
-#define GRAVITY T(9.81)
 
 
 class ImuOdoOdometry
 {
 public:
   //! Constructor.
-  ImuOdoOdometry(ros::NodeHandle& pnh);
+  ImuOdoOdometry(ros::NodeHandle& pnh, ros::Rate& r);
 
   //! Destructor.
   ~ImuOdoOdometry();
@@ -57,15 +55,20 @@ public:
 
 private:
 
+  // initialize Kalman Filter
+  void initFilterCov();
+  void initFilterState();
+
+
   // collect data and prepare computing
-  void computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_DELTA &odo_msg,
+  bool computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_DELTA &odo_msg,
                           const drive_ros_msgs::mav_cc16_IMU &imu_msg);
 
   // compute one kalman step
   bool computeFilterStep();
 
   // publish data
-  void publishCarState();
+  bool publishCarState();
 
 
   // Callback function for subscriber
@@ -84,7 +87,7 @@ private:
   tf2_ros::TransformBroadcaster br;
   ros::Publisher vis_pub;
 
-
+  ros::Rate rate;
   ros::NodeHandle pnh_;
 
   // ROS local message storage + mutex
@@ -106,7 +109,7 @@ private:
   ros::Duration currentDelta;
 
   // parameter
-  int steps_to_predict_without_data;
+  ros::Duration reset_filter_thres;
   bool debug_rviz;
   bool debug_file;
   std::string tf_parent;

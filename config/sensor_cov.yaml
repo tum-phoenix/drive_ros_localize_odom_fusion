@@ -2,7 +2,7 @@
 sensor_cov:
     odometer_velo_cov_xx: 0.1
     imu_acc_cov_xx: 0.5
-    imu_acc_cov_yy: 1.5
+    imu_acc_cov_yy: 0.5
     imu_gyro_cov_zz: 0.025
     imu_acc_bias_x: 0
     imu_acc_bias_y: 0
