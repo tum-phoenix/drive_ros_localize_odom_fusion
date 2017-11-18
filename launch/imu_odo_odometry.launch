@@ -24,7 +24,7 @@
     <arg name="debug_rviz" default="true" />
 
     <!-- debug state to file -->
-    <arg name="debug_file" default="false" />
+    <arg name="debug_file" default="true" />
     <arg name="debug_file_path" default="/tmp/odom_debug.csv" />
 
     <!-- forward output to [screen|log] -->

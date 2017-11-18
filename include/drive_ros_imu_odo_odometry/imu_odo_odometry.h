@@ -105,7 +105,6 @@ private:
   // ROS times and durations
   ros::Time lastTimestamp;
   ros::Time currentTimestamp;
-  ros::Duration previousDelta;
   ros::Duration currentDelta;
 
   // parameter

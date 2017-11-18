@@ -14,7 +14,7 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh, ros::Rate& r):
   pnh_.param<int>("queue_size", queue_size, 5);
   pnh_.param<std::string>("tf_parent", tf_parent, "odometry");
   pnh_.param<std::string>("tf_child", tf_child, "rear_axis_middle_ground");
-  pnh_.param<std::string>("debug_file_path", debug_file_path, "~/debug.csv");
+  pnh_.param<std::string>("debug_file_path", debug_file_path, "/tmp/odom_debug.csv");
   pnh_.param<bool>("debug_rviz", debug_rviz, false);
   pnh_.param<bool>("debug_file", debug_file, false);
 
@@ -43,8 +43,17 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh, ros::Rate& r):
               << "meas_ax,"
               << "meas_ay,"
               << "meas_v,"
-              << "meas_omega"
-              << std::endl;
+              << "meas_omega,";
+
+     for(int i=0; i<6; i++)
+       for(int j=0; j<6; j++)
+         file_log << "state_cov_(" << i << "|" << j << "),";
+
+     for(int i=0; i<4; i++)
+       for(int j=0; j<4; j++)
+         file_log << "meas_cov_(" << i << "|" << j << "),";
+
+      file_log << std::endl;
   }
 
   // init subscribers
@@ -144,7 +153,7 @@ void ImuOdoOdometry::initFilterCov()
   // reset initial times
   odo_msg.header.stamp = ros::Time(0);
   imu_msg.header.stamp = ros::Time(0);
-  lastTimestamp = ros::Time(0);
+  lastTimestamp        = ros::Time(0);
 
 }
 
@@ -241,9 +250,13 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_
     if(std::abs(currentDelta.sec) > 1)
     {
       initFilterState();
+      return false;
     }
 
-    return false;
+    cov(Measurement::AX,    Measurement::AX)    = 1000000;
+    cov(Measurement::AY,    Measurement::AY)    = 1000000;
+    cov(Measurement::V,     Measurement::V)     = 1000000;
+    cov(Measurement::OMEGA, Measurement::OMEGA) = 1000000;
 
   // no sensor update :(
   } else if(currentDelta == ros::Duration(0)) {
@@ -307,7 +320,7 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_
   z.ay()    = imu_msg.acc.y;
   z.omega() = imu_msg.gyro.z;
 
-  ROS_DEBUG_STREAM("delta current: " << currentDelta << " delta previous: " << previousDelta);
+  ROS_DEBUG_STREAM("delta current: " << currentDelta);
   ROS_DEBUG_STREAM("measurementVector: " << z);
   ROS_DEBUG_STREAM("measurementCovariance:" << mm.getCovariance());
 
@@ -331,17 +344,15 @@ bool ImuOdoOdometry::computeFilterStep()
 {
   // no new data avialable
   if(ros::Duration(0) == currentDelta) {
-      // use time delta from previous step
-      u.dt() = previousDelta.toSec();
+
+      // use rate
+      u.dt() = rate.expectedCycleTime().toSec();
 
   // new data available
-  } else if(ros::Duration(0) != currentDelta) {
+  } else {
 
       // get current time delta
       u.dt() = currentDelta.toSec();
-
-      // Update previous delta
-      previousDelta = currentDelta;
 
   }
 
@@ -407,9 +418,24 @@ bool ImuOdoOdometry::publishCarState()
               << z.ax()                   << ","
               << z.ay()                   << ","
               << z.v()                    << ","
-              << z.omega()
-              << std::endl;
+              << z.omega()                << ",";
+
+     auto cov_st = sys.getCovariance();
+
+     for(int i=0; i<6; i++)
+      for(int j=0; j<6; j++)
+       file_log << cov_st(i, j) << ",";
+
+     auto cov_mm = mm.getCovariance();
+
+     for(int i=0; i<4; i++)
+      for(int j=0; j<4; j++)
+       file_log << cov_mm(i, j) << ",";
+
+
+    file_log << std::endl;
   }
+
 
   // debug to rviz
   if(debug_rviz)
