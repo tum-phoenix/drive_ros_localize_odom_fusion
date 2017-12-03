@@ -15,7 +15,6 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh, ros::Rate& r):
   pnh_.param<std::string>("tf_parent", tf_parent, "odometry");
   pnh_.param<std::string>("tf_child", tf_child, "rear_axis_middle_ground");
   pnh_.param<std::string>("debug_file_path", debug_file_path, "/tmp/odom_debug.csv");
-  pnh_.param<bool>("debug_rviz", debug_rviz, false);
   pnh_.param<bool>("debug_file", debug_file, false);
 
   float reset_filter_thres_fl;
@@ -23,10 +22,7 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh, ros::Rate& r):
   reset_filter_thres = ros::Duration(reset_filter_thres_fl);
 
   // debug publisher
-  if(debug_rviz)
-  {
-    vis_pub = pnh.advertise<visualization_msgs::Marker>("visualization_marker", 0);
-  }
+  odo_pub = pnh.advertise<nav_msgs::Odometry>("odom", 0);
 
   // debug file
   if(debug_file)
@@ -57,8 +53,8 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh, ros::Rate& r):
   }
 
   // init subscribers
-  odo_sub = new message_filters::Subscriber<drive_ros_msgs::mav_cc16_ODOMETER_DELTA>(pnh, "odo_in", queue_size);
-  imu_sub = new message_filters::Subscriber<drive_ros_msgs::mav_cc16_IMU>(pnh, "imu_in", queue_size);
+  odo_sub = new message_filters::Subscriber<drive_ros_msgs::VehicleEncoder>(pnh, "odo_in", queue_size);
+  imu_sub = new message_filters::Subscriber<sensor_msgs::Imu>(pnh, "imu_in", queue_size);
 
   policy = new SyncPolicy(queue_size);
 
@@ -132,24 +128,6 @@ void ImuOdoOdometry::initFilterCov()
 
   sys.setCovariance(cov);
 
-  // Set sensor covariances
-  if( pnh_.getParam("sensor_cov/odometer_velo_cov_xx", odometer_velo_cov_xx) &&
-      pnh_.getParam("sensor_cov/imu_acc_cov_xx", imu_acc_cov_xx) &&
-      pnh_.getParam("sensor_cov/imu_acc_cov_yy", imu_acc_cov_yy) &&
-      pnh_.getParam("sensor_cov/imu_gyro_cov_zz", imu_gyro_cov_zz) &&
-      pnh_.getParam("sensor_cov/imu_acc_bias_x", imu_acc_bias_x) &&
-      pnh_.getParam("sensor_cov/imu_acc_bias_y", imu_acc_bias_y) &&
-      pnh_.getParam("sensor_cov/imu_acc_bias_z", imu_acc_bias_z) &&
-      pnh_.getParam("sensor_cov/imu_gyro_bias_x", imu_gyro_bias_x) &&
-      pnh_.getParam("sensor_cov/imu_gyro_bias_y", imu_gyro_bias_y) &&
-      pnh_.getParam("sensor_cov/imu_gyro_bias_z", imu_gyro_bias_z))
-  {
-    ROS_INFO("Sensor covariances loaded successfully");
-  }else{
-    ROS_ERROR("Error loading sensor covariances!");
-    throw std::runtime_error("Error loading parameters");
-  }
-
   // reset initial times
   odo_msg.header.stamp = ros::Time(0);
   imu_msg.header.stamp = ros::Time(0);
@@ -158,8 +136,8 @@ void ImuOdoOdometry::initFilterCov()
 }
 
 // callback if both odo and imu messages with same timestamp have arrived
-void ImuOdoOdometry::syncCallback(const drive_ros_msgs::mav_cc16_ODOMETER_DELTAConstPtr &msg_odo,
-                                  const drive_ros_msgs::mav_cc16_IMUConstPtr &msg_imu)
+void ImuOdoOdometry::syncCallback(const drive_ros_msgs::VehicleEncoderConstPtr &msg_odo,
+                                  const sensor_msgs::ImuConstPtr &msg_imu)
 {
   mut.lock();
   odo_msg = *msg_odo;
@@ -176,8 +154,8 @@ void ImuOdoOdometry::computeOdometry()
 {
 
   mut.lock();
-  const drive_ros_msgs::mav_cc16_ODOMETER_DELTA local_odo = odo_msg;
-  const drive_ros_msgs::mav_cc16_IMU local_imu = imu_msg;
+  const drive_ros_msgs::VehicleEncoder local_odo = odo_msg;
+  const sensor_msgs::Imu local_imu = imu_msg;
   mut.unlock();
 
 
@@ -232,8 +210,8 @@ void ImuOdoOdometry::computeOdometry()
 
 }
 
-bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_DELTA &odo_msg,
-                                        const drive_ros_msgs::mav_cc16_IMU &imu_msg)
+bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoder &odo_msg,
+                                        const sensor_msgs::Imu &imu_msg)
 {
   // create measurement covariances
   Kalman::Covariance<Measurement> cov;
@@ -269,10 +247,10 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_
       ct_no_data++;
 
       // increase covariances because we have to use old sensor data
-      cov(Measurement::AX,    Measurement::AX)    = imu_acc_cov_xx        * (ct_no_data+1);
-      cov(Measurement::AY,    Measurement::AY)    = imu_acc_cov_yy        * (ct_no_data+1);
-      cov(Measurement::V,     Measurement::V)     = odometer_velo_cov_xx  * (ct_no_data+1);
-      cov(Measurement::OMEGA, Measurement::OMEGA) = imu_gyro_cov_zz       * (ct_no_data+1);
+      cov(Measurement::AX,    Measurement::AX)    = imu_msg.linear_acceleration_covariance[COV::XX] * (ct_no_data + 1);
+      cov(Measurement::AY,    Measurement::AY)    = imu_msg.linear_acceleration_covariance[COV::YY] * (ct_no_data + 1);
+      cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg.angular_velocity_covariance[COV::ZZ]    * (ct_no_data + 1);
+      cov(Measurement::V,     Measurement::V)     = odo_msg.encoder[VeEnc::MOTOR].vel_var           * (ct_no_data + 1);
 
 
   // jumping back in time
@@ -288,10 +266,10 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_
       ct_no_data++;
 
       // increase covariances because there is something fishy
-      cov(Measurement::AX,    Measurement::AX)    = imu_acc_cov_xx        * (ct_no_data+1);
-      cov(Measurement::AY,    Measurement::AY)    = imu_acc_cov_yy        * (ct_no_data+1);
-      cov(Measurement::V,     Measurement::V)     = odometer_velo_cov_xx  * (ct_no_data+1);
-      cov(Measurement::OMEGA, Measurement::OMEGA) = imu_gyro_cov_zz       * (ct_no_data+1);
+      cov(Measurement::AX,    Measurement::AX)    = imu_msg.linear_acceleration_covariance[COV::XX] * (ct_no_data + 1);
+      cov(Measurement::AY,    Measurement::AY)    = imu_msg.linear_acceleration_covariance[COV::YY] * (ct_no_data + 1);
+      cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg.angular_velocity_covariance[COV::ZZ]    * (ct_no_data + 1);
+      cov(Measurement::V,     Measurement::V)     = odo_msg.encoder[VeEnc::MOTOR].vel_var           * (ct_no_data + 1);
 
   // everything is ok
   }else{
@@ -304,10 +282,10 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_
     double factor_err = currentDelta.toSec() / rate.expectedCycleTime().toSec();
     ROS_DEBUG_STREAM("error factor: " << factor_err);
 
-    cov(Measurement::AX,    Measurement::AX)    = imu_acc_cov_xx        * factor_err;
-    cov(Measurement::AY,    Measurement::AY)    = imu_acc_cov_yy        * factor_err;
-    cov(Measurement::V,     Measurement::V)     = odometer_velo_cov_xx  * factor_err;
-    cov(Measurement::OMEGA, Measurement::OMEGA) = imu_gyro_cov_zz       * factor_err;
+    cov(Measurement::AX,    Measurement::AX)    = imu_msg.linear_acceleration_covariance[COV::XX] * factor_err;
+    cov(Measurement::AY,    Measurement::AY)    = imu_msg.linear_acceleration_covariance[COV::YY] * factor_err;
+    cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg.angular_velocity_covariance[COV::ZZ]    * factor_err;
+    cov(Measurement::V,     Measurement::V)     = odo_msg.encoder[VeEnc::MOTOR].vel_var           * factor_err;
 
   }
 
@@ -315,10 +293,10 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_
   mm.setCovariance(cov);
 
   // set measurements vector z
-  z.v()     = odo_msg.velocity.x;
-  z.ax()    = imu_msg.acc.x;
-  z.ay()    = imu_msg.acc.y;
-  z.omega() = imu_msg.gyro.z;
+  z.v()     = odo_msg.encoder[VeEnc::MOTOR].vel;
+  z.ax()    = imu_msg.linear_acceleration.x;
+  z.ay()    = imu_msg.linear_acceleration.y;
+  z.omega() = imu_msg.angular_velocity.z;
 
   ROS_DEBUG_STREAM("delta current: " << currentDelta);
   ROS_DEBUG_STREAM("measurementVector: " << z);
@@ -404,6 +382,22 @@ bool ImuOdoOdometry::publishCarState()
   br.sendTransform(transformStamped);
 
 
+
+  // publish odometry message
+  nav_msgs::Odometry odom;
+  odom.header.stamp = currentTimestamp;
+  odom.header.frame_id = tf_parent;
+  odom.child_frame_id = tf_child;
+  odom.pose.pose.position.x = state.x();
+  odom.pose.pose.position.y = state.y();
+  odom.pose.pose.position.z = 0;
+  odom.pose.pose.orientation.x = q1.x();
+  odom.pose.pose.orientation.y = q1.y();
+  odom.pose.pose.orientation.z = q1.z();
+  odom.pose.pose.orientation.w = q1.w();
+  odo_pub.publish(odom);
+
+
   // debug to file
   if(debug_file)
   {
@@ -434,36 +428,6 @@ bool ImuOdoOdometry::publishCarState()
 
 
     file_log << std::endl;
-  }
-
-
-  // debug to rviz
-  if(debug_rviz)
-  {
-    ct++;
-    visualization_msgs::Marker marker;
-    marker.header.frame_id = tf_parent;
-    marker.header.stamp = currentTimestamp;
-    marker.ns = "odometry";
-    marker.id = ct;
-    marker.type = visualization_msgs::Marker::ARROW;
-    marker.action = visualization_msgs::Marker::ADD;
-    marker.pose.position.x = state.x();
-    marker.pose.position.y = state.y();
-    marker.pose.position.z = 0;
-    marker.pose.orientation.x = q1.x();
-    marker.pose.orientation.y = q1.y();
-    marker.pose.orientation.z = q1.z();
-    marker.pose.orientation.w = q1.w();
-    marker.scale.x = 0.05;
-    marker.scale.y = 0.005;
-    marker.scale.z = 0.005;
-    marker.color.a = 0.5;
-    marker.color.r = 1.0;
-    marker.color.g = 0.0;
-    marker.color.b = 0.0;
-    marker.lifetime = ros::Duration(60);
-    vis_pub.publish(marker);
   }
 
   return true;

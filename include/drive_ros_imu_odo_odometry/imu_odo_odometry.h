@@ -16,16 +16,29 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 // ros messages
-#include <visualization_msgs/Marker.h>
 #include <geometry_msgs/TransformStamped.h>
-#include "drive_ros_msgs/mav_cc16_IMU.h"
-#include "drive_ros_msgs/mav_cc16_ODOMETER_DELTA.h"
+#include <sensor_msgs/Imu.h>
+#include <nav_msgs/Odometry.h>
+#include "drive_ros_msgs/VehicleEncoder.h"
 #include "drive_ros_msgs/TimeCompare.h"
 
 // kalman
 #include <kalman/ExtendedKalmanFilter.hpp>
 #include "measurement_model.h"
 #include "system_model.h"
+
+// covariance matrix
+enum COV{
+  XX = 0,
+  XY = 1,
+  XZ = 2,
+  YX = 3,
+  YY = 4,
+  YZ = 5,
+  ZX = 6,
+  ZY = 7,
+  ZZ = 8
+};
 
 
 class ImuOdoOdometry
@@ -41,6 +54,8 @@ public:
 
   typedef float T;
 
+  typedef drive_ros_msgs::VehicleEncoder VeEnc;
+
   typedef CTRA::State<T> State;
   typedef CTRA::Control<T> Control;
   typedef CTRA::Measurement<T> Measurement;
@@ -49,8 +64,8 @@ public:
   typedef CTRA::SystemModel<T> SystemModel;
   typedef Kalman::ExtendedKalmanFilter<State> Filter;
 
-  typedef message_filters::sync_policies::ExactTime<drive_ros_msgs::mav_cc16_ODOMETER_DELTA,
-                                                    drive_ros_msgs::mav_cc16_IMU> SyncPolicy;
+  typedef message_filters::sync_policies::ExactTime<drive_ros_msgs::VehicleEncoder,
+                                                    sensor_msgs::Imu> SyncPolicy;
 
 
 private:
@@ -61,8 +76,8 @@ private:
 
 
   // collect data and prepare computing
-  bool computeMeasurement(const drive_ros_msgs::mav_cc16_ODOMETER_DELTA &odo_msg,
-                          const drive_ros_msgs::mav_cc16_IMU &imu_msg);
+  bool computeMeasurement(const drive_ros_msgs::VehicleEncoder &odo_msg,
+                          const sensor_msgs::Imu &imu_msg);
 
   // compute one kalman step
   bool computeFilterStep();
@@ -72,27 +87,27 @@ private:
 
 
   // Callback function for subscriber
-  void syncCallback(const drive_ros_msgs::mav_cc16_ODOMETER_DELTAConstPtr &msg_odo,
-                    const drive_ros_msgs::mav_cc16_IMUConstPtr &msg_imu);
+  void syncCallback(const drive_ros_msgs::VehicleEncoderConstPtr &msg_odo,
+                    const sensor_msgs::ImuConstPtr &msg_imu);
 
 
 
   // ROS subscriber + synchronizer
-  message_filters::Subscriber<drive_ros_msgs::mav_cc16_IMU> *imu_sub;
-  message_filters::Subscriber<drive_ros_msgs::mav_cc16_ODOMETER_DELTA> *odo_sub;
+  message_filters::Subscriber<sensor_msgs::Imu> *imu_sub;
+  message_filters::Subscriber<drive_ros_msgs::VehicleEncoder> *odo_sub;
   message_filters::Synchronizer<SyncPolicy> *sync;
   SyncPolicy* policy;
 
   // ROS publisher or broadcaster
   tf2_ros::TransformBroadcaster br;
-  ros::Publisher vis_pub;
+  ros::Publisher odo_pub;
 
   ros::Rate rate;
   ros::NodeHandle pnh_;
 
   // ROS local message storage + mutex
-  drive_ros_msgs::mav_cc16_ODOMETER_DELTA odo_msg;
-  drive_ros_msgs::mav_cc16_IMU imu_msg;
+  drive_ros_msgs::VehicleEncoder odo_msg;
+  sensor_msgs::Imu imu_msg;
   std::mutex mut;
 
   // kalman filter stuff
@@ -109,7 +124,6 @@ private:
 
   // parameter
   ros::Duration reset_filter_thres;
-  bool debug_rviz;
   bool debug_file;
   std::string tf_parent;
   std::string tf_child;
@@ -120,18 +134,6 @@ private:
 
   // debug to file
   std::ofstream file_log;
-
-  // sensor covariance parameter
-  double odometer_velo_cov_xx;
-  double imu_acc_cov_xx;
-  double imu_acc_cov_yy;
-  double imu_gyro_cov_zz;
-  double imu_acc_bias_x;
-  double imu_acc_bias_y;
-  double imu_acc_bias_z;
-  double imu_gyro_bias_x;
-  double imu_gyro_bias_y;
-  double imu_gyro_bias_z;
 
 };
 
