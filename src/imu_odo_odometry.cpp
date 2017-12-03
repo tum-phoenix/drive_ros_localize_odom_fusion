@@ -1,8 +1,8 @@
 #include "drive_ros_imu_odo_odometry/imu_odo_odometry.h"
 
 // constructor (initialize everything)
-ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh, ros::Rate& r):
-  pnh_(pnh), rate(r)
+ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::Rate& r):
+  nh(nh), pnh(pnh), rate(r)
 {
   // queue for subscribers and sync policy
   int queue_size;
@@ -11,18 +11,18 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& pnh, ros::Rate& r):
   std::string debug_file_path;
 
   // ros parameters
-  pnh_.param<int>("queue_size", queue_size, 5);
-  pnh_.param<std::string>("tf_parent", tf_parent, "odometry");
-  pnh_.param<std::string>("tf_child", tf_child, "rear_axis_middle_ground");
-  pnh_.param<std::string>("debug_file_path", debug_file_path, "/tmp/odom_debug.csv");
-  pnh_.param<bool>("debug_file", debug_file, false);
+  pnh.param<int>("queue_size", queue_size, 5);
+  pnh.param<std::string>("tf_parent", tf_parent, "odometry");
+  pnh.param<std::string>("tf_child", tf_child, "rear_axis_middle_ground");
+  pnh.param<std::string>("debug_file_path", debug_file_path, "/tmp/odom_debug.csv");
+  pnh.param<bool>("debug_file", debug_file, false);
 
   float reset_filter_thres_fl;
-  pnh_.param<float>("reset_filter_thres", reset_filter_thres_fl, 0.5);
+  pnh.param<float>("reset_filter_thres", reset_filter_thres_fl, 0.5);
   reset_filter_thres = ros::Duration(reset_filter_thres_fl);
 
   // debug publisher
-  odo_pub = pnh.advertise<nav_msgs::Odometry>("odom", 0);
+  odo_pub = nh.advertise<nav_msgs::Odometry>(tf_parent, 0);
 
   // debug file
   if(debug_file)
@@ -94,12 +94,12 @@ void ImuOdoOdometry::initFilterCov()
   Kalman::Covariance<State> stateCov;
   stateCov.setZero();
 
-  if( pnh_.getParam("kalman_cov/filter_init_var_x", stateCov(State::X, State::X)) &&
-      pnh_.getParam("kalman_cov/filter_init_var_y", stateCov(State::Y, State::Y)) &&
-      pnh_.getParam("kalman_cov/filter_init_var_a", stateCov(State::A, State::A)) &&
-      pnh_.getParam("kalman_cov/filter_init_var_v", stateCov(State::V, State::V)) &&
-      pnh_.getParam("kalman_cov/filter_init_var_theta", stateCov(State::THETA, State::THETA)) &&
-      pnh_.getParam("kalman_cov/filter_init_var_omega", stateCov(State::OMEGA, State::OMEGA)))
+  if( pnh.getParam("kalman_cov/filter_init_var_x", stateCov(State::X, State::X)) &&
+      pnh.getParam("kalman_cov/filter_init_var_y", stateCov(State::Y, State::Y)) &&
+      pnh.getParam("kalman_cov/filter_init_var_a", stateCov(State::A, State::A)) &&
+      pnh.getParam("kalman_cov/filter_init_var_v", stateCov(State::V, State::V)) &&
+      pnh.getParam("kalman_cov/filter_init_var_theta", stateCov(State::THETA, State::THETA)) &&
+      pnh.getParam("kalman_cov/filter_init_var_omega", stateCov(State::OMEGA, State::OMEGA)))
   {
     ROS_INFO("Kalman initial state covariance loaded successfully");
   }else{
@@ -113,12 +113,12 @@ void ImuOdoOdometry::initFilterCov()
   Kalman::Covariance<State> cov;
   cov.setZero();
 
-  if( pnh_.getParam("kalman_cov/sys_var_x", cov(State::X, State::X)) &&
-      pnh_.getParam("kalman_cov/sys_var_y", cov(State::Y, State::Y)) &&
-      pnh_.getParam("kalman_cov/sys_var_a", cov(State::A, State::A)) &&
-      pnh_.getParam("kalman_cov/sys_var_v", cov(State::V, State::V)) &&
-      pnh_.getParam("kalman_cov/sys_var_theta", cov(State::THETA, State::THETA)) &&
-      pnh_.getParam("kalman_cov/sys_var_omega", cov(State::OMEGA, State::OMEGA)))
+  if( pnh.getParam("kalman_cov/sys_var_x", cov(State::X, State::X)) &&
+      pnh.getParam("kalman_cov/sys_var_y", cov(State::Y, State::Y)) &&
+      pnh.getParam("kalman_cov/sys_var_a", cov(State::A, State::A)) &&
+      pnh.getParam("kalman_cov/sys_var_v", cov(State::V, State::V)) &&
+      pnh.getParam("kalman_cov/sys_var_theta", cov(State::THETA, State::THETA)) &&
+      pnh.getParam("kalman_cov/sys_var_omega", cov(State::OMEGA, State::OMEGA)))
   {
     ROS_INFO("Kalman initial process covariance loaded successfully");
   }else{

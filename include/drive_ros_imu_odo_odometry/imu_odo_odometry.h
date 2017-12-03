@@ -45,7 +45,7 @@ class ImuOdoOdometry
 {
 public:
   //! Constructor.
-  ImuOdoOdometry(ros::NodeHandle& pnh, ros::Rate& r);
+  ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::Rate& r);
 
   //! Destructor.
   ~ImuOdoOdometry();
@@ -103,7 +103,8 @@ private:
   ros::Publisher odo_pub;
 
   ros::Rate rate;
-  ros::NodeHandle pnh_;
+  ros::NodeHandle nh;
+  ros::NodeHandle pnh;
 
   // ROS local message storage + mutex
   drive_ros_msgs::VehicleEncoder odo_msg;

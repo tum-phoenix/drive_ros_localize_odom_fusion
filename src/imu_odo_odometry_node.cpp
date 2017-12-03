@@ -14,6 +14,7 @@ int main(int argc, char **argv)
 {
   // Set up ROS.
   ros::init(argc, argv, "imu_odo_odometry");
+  ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
 
   // rate at which the node will run
@@ -26,7 +27,7 @@ int main(int argc, char **argv)
   ros::Duration(2.0).sleep();
 #endif
 
-  ImuOdoOdometry odom(pnh, r);
+  ImuOdoOdometry odom(nh, pnh, r);
   ROS_INFO("IMU & Odometer odometry node succesfully initialized");
 
 
