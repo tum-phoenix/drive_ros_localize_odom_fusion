@@ -224,6 +224,7 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoder &od
         << " delta = " << currentDelta
         << " thres = " << reset_filter_thres);
 
+    // TODO: make this a parameter
     // time jumps bigger than 1 sec -> also reset Kalman state
     if(std::abs(currentDelta.sec) > 1)
     {
@@ -247,9 +248,9 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoder &od
       ct_no_data++;
 
       // increase covariances because we have to use old sensor data
-      cov(Measurement::AX,    Measurement::AX)    = imu_msg.linear_acceleration_covariance[COV::XX] * (ct_no_data + 1);
-      cov(Measurement::AY,    Measurement::AY)    = imu_msg.linear_acceleration_covariance[COV::YY] * (ct_no_data + 1);
-      cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg.angular_velocity_covariance[COV::ZZ]    * (ct_no_data + 1);
+      cov(Measurement::AX,    Measurement::AX)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linX_linX] * (ct_no_data + 1);
+      cov(Measurement::AY,    Measurement::AY)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linY_linY] * (ct_no_data + 1);
+      cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg.angular_velocity_covariance[CovElem::ang::angZ_angZ]    * (ct_no_data + 1);
       cov(Measurement::V,     Measurement::V)     = odo_msg.encoder[VeEnc::MOTOR].vel_var           * (ct_no_data + 1);
 
 
@@ -266,9 +267,9 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoder &od
       ct_no_data++;
 
       // increase covariances because there is something fishy
-      cov(Measurement::AX,    Measurement::AX)    = imu_msg.linear_acceleration_covariance[COV::XX] * (ct_no_data + 1);
-      cov(Measurement::AY,    Measurement::AY)    = imu_msg.linear_acceleration_covariance[COV::YY] * (ct_no_data + 1);
-      cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg.angular_velocity_covariance[COV::ZZ]    * (ct_no_data + 1);
+      cov(Measurement::AX,    Measurement::AX)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linX_linX] * (ct_no_data + 1);
+      cov(Measurement::AY,    Measurement::AY)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linY_linY] * (ct_no_data + 1);
+      cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg.angular_velocity_covariance[CovElem::ang::angZ_angZ]    * (ct_no_data + 1);
       cov(Measurement::V,     Measurement::V)     = odo_msg.encoder[VeEnc::MOTOR].vel_var           * (ct_no_data + 1);
 
   // everything is ok
@@ -282,9 +283,11 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoder &od
     double factor_err = currentDelta.toSec() / rate.expectedCycleTime().toSec();
     ROS_DEBUG_STREAM("error factor: " << factor_err);
 
-    cov(Measurement::AX,    Measurement::AX)    = imu_msg.linear_acceleration_covariance[COV::XX] * factor_err;
-    cov(Measurement::AY,    Measurement::AY)    = imu_msg.linear_acceleration_covariance[COV::YY] * factor_err;
-    cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg.angular_velocity_covariance[COV::ZZ]    * factor_err;
+
+
+    cov(Measurement::AX,    Measurement::AX)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linX_linX] * factor_err;
+    cov(Measurement::AY,    Measurement::AY)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linY_linY] * factor_err;
+    cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg.angular_velocity_covariance[CovElem::ang::angZ_angZ]    * factor_err;
     cov(Measurement::V,     Measurement::V)     = odo_msg.encoder[VeEnc::MOTOR].vel_var           * factor_err;
 
   }
@@ -300,7 +303,6 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoder &od
 
   ROS_DEBUG_STREAM("delta current: " << currentDelta);
   ROS_DEBUG_STREAM("measurementVector: " << z);
-  ROS_DEBUG_STREAM("measurementCovariance:" << mm.getCovariance());
 
   if( std::isnan(cov(Measurement::AX,    Measurement::AX)   ) ||
       std::isnan(cov(Measurement::AY,    Measurement::AY)   ) ||
@@ -346,8 +348,17 @@ bool ImuOdoOdometry::computeFilterStep()
 bool ImuOdoOdometry::publishCarState()
 {
   const auto& state = filter.getState();
-  ROS_DEBUG_STREAM("stateCovariance" << filter.getCovariance());
   ROS_DEBUG_STREAM("newState: " << state);
+
+  const auto& cov_ft = filter.getCovariance();
+  ROS_DEBUG_STREAM("FilterCovariance: " << cov_ft);
+
+  const auto& cov_mm = mm.getCovariance();
+  ROS_DEBUG_STREAM("measurementCovariance: " << cov_mm);
+
+  tf2::Quaternion q1;
+  q1.setRPY(0, 0, state.theta());
+
 
   // check if nan
   if( std::isnan(state.x())       ||
@@ -355,10 +366,9 @@ bool ImuOdoOdometry::publishCarState()
       std::isnan(state.theta())   ||
       std::isnan(state.v())       ||
       std::isnan(state.a())       ||
-      std::isnan(state.omega())   ||
-      std::isnan(z.omega()) )
+      std::isnan(state.omega()))
   {
-    ROS_ERROR("Measurement is NAN! Reinit Kalman.");
+    ROS_ERROR("State is NAN! Reinit Kalman.");
     initFilterState();
     return false;
 
@@ -373,21 +383,19 @@ bool ImuOdoOdometry::publishCarState()
   transformStamped.transform.translation.x = state.x();
   transformStamped.transform.translation.y = state.y();
   transformStamped.transform.translation.z = 0;
-  tf2::Quaternion q1;
-  q1.setRPY(0, 0, state.theta());
   transformStamped.transform.rotation.x =  q1.x();
   transformStamped.transform.rotation.y =  q1.y();
   transformStamped.transform.rotation.z =  q1.z();
   transformStamped.transform.rotation.w =  q1.w();
   br.sendTransform(transformStamped);
 
-
-
   // publish odometry message
   nav_msgs::Odometry odom;
   odom.header.stamp = currentTimestamp;
   odom.header.frame_id = tf_parent;
   odom.child_frame_id = tf_child;
+
+  // pose
   odom.pose.pose.position.x = state.x();
   odom.pose.pose.position.y = state.y();
   odom.pose.pose.position.z = 0;
@@ -395,6 +403,16 @@ bool ImuOdoOdometry::publishCarState()
   odom.pose.pose.orientation.y = q1.y();
   odom.pose.pose.orientation.z = q1.z();
   odom.pose.pose.orientation.w = q1.w();
+  odom.pose.covariance[CovElem::lin_ang::linX_linX] = cov_ft(State::X,      State::X);
+  odom.pose.covariance[CovElem::lin_ang::linY_linY] = cov_ft(State::Y,      State::Y);
+  odom.pose.covariance[CovElem::lin_ang::angZ_angZ] = cov_ft(State::THETA,  State::THETA);
+
+  // twist
+  odom.twist.twist.linear.x = state.v();
+  odom.twist.twist.angular.z = state.omega();
+  odom.twist.covariance[CovElem::lin_ang::linX_linX] = cov_ft(State::V,      State::V);
+  odom.twist.covariance[CovElem::lin_ang::angZ_angZ] = cov_ft(State::OMEGA,  State::OMEGA);
+
   odo_pub.publish(odom);
 
 
@@ -414,13 +432,13 @@ bool ImuOdoOdometry::publishCarState()
               << z.v()                    << ","
               << z.omega()                << ",";
 
-     auto cov_st = sys.getCovariance();
+
 
      for(int i=0; i<6; i++)
       for(int j=0; j<6; j++)
-       file_log << cov_st(i, j) << ",";
+       file_log << cov_ft(i, j) << ",";
 
-     auto cov_mm = mm.getCovariance();
+
 
      for(int i=0; i<4; i++)
       for(int j=0; j<4; j++)

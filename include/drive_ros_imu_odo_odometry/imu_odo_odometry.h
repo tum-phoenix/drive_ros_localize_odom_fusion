@@ -26,19 +26,8 @@
 #include <kalman/ExtendedKalmanFilter.hpp>
 #include "measurement_model.h"
 #include "system_model.h"
+#include "cov_elements.h"
 
-// covariance matrix
-enum COV{
-  XX = 0,
-  XY = 1,
-  XZ = 2,
-  YX = 3,
-  YY = 4,
-  YZ = 5,
-  ZX = 6,
-  ZY = 7,
-  ZZ = 8
-};
 
 
 class ImuOdoOdometry
