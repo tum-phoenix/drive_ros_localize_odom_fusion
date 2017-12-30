@@ -20,11 +20,11 @@ public:
     static constexpr size_t X = 0;
     //! Y-Position
     static constexpr size_t Y = 1;
-    //! Orientation
+    //! orientation
     static constexpr size_t THETA = 2;
-    //! X velocity
+    //! velocity
     static constexpr size_t V = 3;
-    //! Y velocity
+    //! acceleration
     static constexpr size_t A = 4;
     //! Angular velocity
     static constexpr size_t OMEGA = 5;
