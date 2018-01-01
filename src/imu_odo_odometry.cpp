@@ -56,7 +56,13 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::R
   odo_sub = new message_filters::Subscriber<drive_ros_msgs::VehicleEncoder>(pnh, "odo_in", queue_size);
   imu_sub = new message_filters::Subscriber<sensor_msgs::Imu>(pnh, "imu_in", queue_size);
 
+  // parameters can be found here: http://wiki.ros.org/message_filters/ApproximateTime
   policy = new SyncPolicy(queue_size);
+  policy->setAgePenalty(5);
+  policy->setInterMessageLowerBound(0, ros::Rate(300*2).expectedCycleTime());
+  policy->setInterMessageLowerBound(1, ros::Rate(300*2).expectedCycleTime());
+  policy->setMaxIntervalDuration(ros::Duration(0.001));
+
 
   sync = new message_filters::Synchronizer<SyncPolicy>(static_cast<SyncPolicy>(*policy), *odo_sub, *imu_sub);
   sync->registerCallback(boost::bind(&ImuOdoOdometry::syncCallback, this, _1, _2));
@@ -141,7 +147,9 @@ void ImuOdoOdometry::syncCallback(const drive_ros_msgs::VehicleEncoderConstPtr &
   imu_msg = *msg_imu;
   mut.unlock();
 
-  ROS_DEBUG_STREAM("Got new callback with time: " << msg_imu->header.stamp);
+  ROS_DEBUG_STREAM("Got new callback with times. IMU: " << msg_imu->header.stamp
+                                           << " Odom: " << msg_odo->header.stamp
+                                           << " Diff: " << msg_imu->header.stamp - msg_odo->header.stamp);
 
 }
 
@@ -156,22 +164,15 @@ void ImuOdoOdometry::computeOdometry()
   mut.unlock();
 
 
-  // check if timestamps are the same
-  if(local_odo.header.stamp != local_imu.header.stamp)
-  {
-    ROS_WARN("Odometry and IMU timestamps are not the same!");
-    return;
-  }
-
   // check if timestamps are 0
-  if(ros::Time(0) == local_imu.header.stamp)
+  if(ros::Time(0) == local_imu.header.stamp || ros::Time(0) == local_odo.header.stamp)
   {
     ROS_WARN("Didn't receive any new sensor message yet. Waiting...");
     return;
   }
 
   // set timestamp
-  currentTimestamp = local_imu.header.stamp; // both imu and odo should be the same time
+  currentTimestamp = ros::Time((local_imu.header.stamp.toSec() + local_odo.header.stamp.toSec())/2);
 
 
   // check if this is first loop or reinitialized
@@ -181,6 +182,7 @@ void ImuOdoOdometry::computeOdometry()
   }else{
     currentDelta = ( currentTimestamp - lastTimestamp );
   }
+
 
 
   // do all the kalman filter magic
@@ -277,11 +279,15 @@ bool ImuOdoOdometry::computeFilterStep()
       // use rate
       u.dt() = rate.expectedCycleTime().toSec();
 
+      ROS_DEBUG_STREAM("Time delta is zero. Use Expected Cycle Time instead: " << rate.expectedCycleTime());
+
   // new data available
   } else {
 
       // get current time delta
       u.dt() = currentDelta.toSec();
+
+      ROS_DEBUG_STREAM("Use Time delta of: " << currentDelta);
 
   }
 

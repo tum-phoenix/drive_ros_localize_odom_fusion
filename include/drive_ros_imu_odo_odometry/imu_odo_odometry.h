@@ -53,8 +53,8 @@ public:
   typedef CTRA::SystemModel<T> SystemModel;
   typedef Kalman::ExtendedKalmanFilter<State> Filter;
 
-  typedef message_filters::sync_policies::ExactTime<drive_ros_msgs::VehicleEncoder,
-                                                    sensor_msgs::Imu> SyncPolicy;
+  typedef message_filters::sync_policies::ApproximateTime<drive_ros_msgs::VehicleEncoder,
+                                                          sensor_msgs::Imu> SyncPolicy;
 
 
 private:
