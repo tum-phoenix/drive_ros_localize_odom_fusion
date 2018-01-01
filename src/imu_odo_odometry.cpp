@@ -67,7 +67,7 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::R
 
 }
 
-
+// deinitilize
 ImuOdoOdometry::~ImuOdoOdometry()
 {
   file_log.close();
@@ -82,9 +82,6 @@ void ImuOdoOdometry::initFilterState()
   State s;
   s.setZero();
   filter.init(s);
-
-  // reset no data counter
-  ct_no_data = 0;
 }
 
 // initialize Filter covariances
@@ -213,86 +210,36 @@ void ImuOdoOdometry::computeOdometry()
 bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoder &odo_msg,
                                         const sensor_msgs::Imu &imu_msg)
 {
-  // create measurement covariances
-  Kalman::Covariance<Measurement> cov;
-  cov.setZero();
 
   // time jump to big -> reset filter
   if(std::abs(currentDelta.toNSec()) > reset_filter_thres.toNSec()){
 
-    ROS_ERROR_STREAM("Delta Time Threshold exceeded. Reset Filter."
+    ROS_ERROR_STREAM("Delta Time Threshold exceeded. Reinit Filter."
         << " delta = " << currentDelta
         << " thres = " << reset_filter_thres);
 
-    // TODO: make this a parameter
-    // time jumps bigger than 1 sec -> also reset Kalman state
-    if(std::abs(currentDelta.sec) > 1)
-    {
-      initFilterState();
-      return false;
-    }
-
-    cov(Measurement::AX,    Measurement::AX)    = 1000000;
-    cov(Measurement::AY,    Measurement::AY)    = 1000000;
-    cov(Measurement::V,     Measurement::V)     = 1000000;
-    cov(Measurement::OMEGA, Measurement::OMEGA) = 1000000;
-
-  // no sensor update :(
-  } else if(currentDelta == ros::Duration(0)) {
-      // Just predict using previous delta with low covariances
-      ROS_WARN_STREAM("No new sensor data."
-          << " last = " << lastTimestamp
-          << " current = " << currentTimestamp);
-
-      // increase no data counter
-      ct_no_data++;
-
-      // increase covariances because we have to use old sensor data
-      cov(Measurement::AX,    Measurement::AX)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linX_linX] * (ct_no_data + 1);
-      cov(Measurement::AY,    Measurement::AY)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linY_linY] * (ct_no_data + 1);
-      cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg.angular_velocity_covariance[CovElem::ang::angZ_angZ]    * (ct_no_data + 1);
-      cov(Measurement::V,     Measurement::V)     = odo_msg.encoder[VeEnc::MOTOR].vel_var           * (ct_no_data + 1);
-
+   // reset covariances
+   return false;
 
   // jumping back in time
-  } else if( currentDelta < ros::Duration(0)) {
+  }else if(currentDelta < ros::Duration(0)) {
       ROS_WARN_STREAM("Jumping back in time."
           << " delta = " << currentDelta);
 
       // reset times
       currentTimestamp = lastTimestamp;
       currentDelta = ros::Duration(0);
-
-      // increase no data counter
-      ct_no_data++;
-
-      // increase covariances because there is something fishy
-      cov(Measurement::AX,    Measurement::AX)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linX_linX] * (ct_no_data + 1);
-      cov(Measurement::AY,    Measurement::AY)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linY_linY] * (ct_no_data + 1);
-      cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg.angular_velocity_covariance[CovElem::ang::angZ_angZ]    * (ct_no_data + 1);
-      cov(Measurement::V,     Measurement::V)     = odo_msg.encoder[VeEnc::MOTOR].vel_var           * (ct_no_data + 1);
-
-  // everything is ok
-  }else{
-
-    // correct data available, reset counter
-    ct_no_data = 0;
-
-    // if current Delta is bigger than cycle time -> make error bigger
-    // TODO: investigate a little bit more on this
-    double factor_err = currentDelta.toSec() / rate.expectedCycleTime().toSec();
-    ROS_DEBUG_STREAM("error factor: " << factor_err);
-
-
-
-    cov(Measurement::AX,    Measurement::AX)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linX_linX] * factor_err;
-    cov(Measurement::AY,    Measurement::AY)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linY_linY] * factor_err;
-    cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg.angular_velocity_covariance[CovElem::ang::angZ_angZ]    * factor_err;
-    cov(Measurement::V,     Measurement::V)     = odo_msg.encoder[VeEnc::MOTOR].vel_var           * factor_err;
-
   }
 
+
+
   // Set measurement covariances
+  Kalman::Covariance<Measurement> cov;
+  cov.setZero();
+  cov(Measurement::AX,    Measurement::AX)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linX_linX];
+  cov(Measurement::AY,    Measurement::AY)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linY_linY];
+  cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg.angular_velocity_covariance[CovElem::ang::angZ_angZ];
+  cov(Measurement::V,     Measurement::V)     = odo_msg.encoder[VeEnc::MOTOR].vel_var;
   mm.setCovariance(cov);
 
   // set measurements vector z
@@ -304,6 +251,7 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoder &od
   ROS_DEBUG_STREAM("delta current: " << currentDelta);
   ROS_DEBUG_STREAM("measurementVector: " << z);
 
+  // check if there is something wrong
   if( std::isnan(cov(Measurement::AX,    Measurement::AX)   ) ||
       std::isnan(cov(Measurement::AY,    Measurement::AY)   ) ||
       std::isnan(cov(Measurement::V,     Measurement::V)    ) ||
@@ -313,7 +261,8 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoder &od
       std::isnan(z.ay()                                     ) ||
       std::isnan(z.omega()) )
   {
-    ROS_ERROR("Measurement is NAN! Reinit covariances.");
+    ROS_ERROR("Measurement is NAN! Reinit Kalman.");
+    initFilterState();
     return false;
   }
 

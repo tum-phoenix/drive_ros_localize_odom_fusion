@@ -118,10 +118,6 @@ private:
   std::string tf_parent;
   std::string tf_child;
 
-  // counter
-  int ct_no_data;
-  int ct;
-
   // debug to file
   std::ofstream file_log;
 
