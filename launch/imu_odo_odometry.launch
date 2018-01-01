@@ -1,24 +1,39 @@
 <launch>
-    <!-- odometer delta input topic -->
-    <arg name="odo_topic" default="/from_mav/odometer_delta"/>
-    <!-- IMU delta input topic -->
-    <arg name="imu_topic" default="/from_mav/imu"/>
+    <!-- odometer topic -->
+    <arg name="odo_topic_name" default="/from_mav/odometer_delta"/>
+    <arg name="odo_topic_rate" default="300"/>
+
+    <!-- IMU topic -->
+    <arg name="imu_topic_name" default="/from_mav/imu"/>
+    <arg name="imu_topic_rate" default="300"/>
 
     <!-- rate at which the odometry calculation will run (limited by the input topics rates) -->
-    <arg name="rate" default="80"/>
+    <arg name="rate" default="100"/>
+
     <!-- size of subscriber and sync policy queues -->
     <arg name="queue_size" default="10"/>
-    <!-- if this time difference between measurments exceeds this threshold [sec] -> reset the filter -->
-    <arg name="reset_filter_thres" default="0.1"/>
 
-    <!-- define nice value of process (lower means higher priority) [-20;19] -->
-    <!-- more infos: https://en.wikipedia.org/wiki/Nice_(Unix) -->
-    <arg name="nice_val" default="-2"/>
+    <!-- age penalty of approx time message filter (http://wiki.ros.org/message_filters/ApproximateTime) -->
+    <arg name="age_penalty" default="5"/>
+
+    <!-- maximum time allowed between the imu and odo message -->
+    <arg name="max_time_between_imu_odo" default="0.001" />
+
+    <!--
+         maximum time allowed between two measurements (imu+odo).
+         If this time difference between measurments exceeds this threshold [sec]
+         -> reset the filter covariances
+    -->
+    <arg name="max_time_between_meas" default="0.1"/>
 
     <!-- tf parent frame of published tf -->
-    <arg name="tf_parent" default="odometry"/>
+    <arg name="static_frame" default="odometry"/>
+
     <!-- tf child frame of published tf -->
-    <arg name="tf_child" default="rear_axis_middle_ground"/>
+    <arg name="moving_frame" default="rear_axis_middle_ground"/>
+
+    <!-- vehicle configuration file -->
+    <arg name="vehicle_config" default="$(find drive_ros_imu_odo_odometry)/config/phoenix_cc2017.yaml" />
 
     <!-- debug state to file -->
     <arg name="debug_file" default="true" />
@@ -27,17 +42,25 @@
     <!-- forward output to [screen|log] -->
     <arg name="output" default="screen"/>
 
+    <!-- define nice value of process (lower means higher priority) [-20;19] -->
+    <!-- more infos: https://en.wikipedia.org/wiki/Nice_(Unix) -->
+    <arg name="nice_val_pre" default="nice -n -2"/>
+
     <node name="imu_ros_odometry" pkg="drive_ros_imu_odo_odometry" type="drive_ros_imu_odo_odometry_node"
-          output="$(arg output)" launch-prefix="nice -n $(arg nice_val)" >
-        <remap from="~/odo_in" to="$(arg odo_topic)"/>
-        <remap from="~/imu_in" to="$(arg imu_topic)"/>
+          output="$(arg output)" launch-prefix="$(arg nice_val_pre)" >
+        <remap from="~/odo_in" to="$(arg odo_topic_name)"/>
+        <remap from="~/imu_in" to="$(arg imu_topic_name)"/>
+        <param name="odo_topic_rate" type="int" value="$(arg odo_topic_rate)" />
+        <param name="imu_topic_rate" type="int" value="$(arg imu_topic_rate)" />
         <param name="rate" type="int" value="$(arg rate)" />
         <param name="queue_size" type="int" value="$(arg queue_size)" />
-        <param name="reset_filter_thres" type="double" value="$(arg reset_filter_thres)" />
-        <param name="tf_parent" type="str" value="$(arg tf_parent)" />
-        <param name="tf_child" type="str" value="$(arg tf_child)" />
+        <param name="age_penalty" type="double" value="$(arg age_penalty)" />
+        <param name="max_time_between_meas" type="double" value="$(arg max_time_between_meas)" />
+        <param name="max_time_between_imu_odo" type="double" value="$(arg max_time_between_imu_odo)" />
+        <param name="static_frame" type="str" value="$(arg static_frame)" />
+        <param name="moving_frame" type="str" value="$(arg moving_frame)" />
         <param name="debug_file" type="bool" value ="$(arg debug_file)" />
         <param name="debug_file_path" type="str" value ="$(arg debug_file_path)" />
-        <rosparam command="load" file="$(find drive_ros_imu_odo_odometry)/config/kalman_cov.yaml"/>
+        <rosparam command="load" file="$(arg vehicle_config)"/>
     </node>
 </launch>

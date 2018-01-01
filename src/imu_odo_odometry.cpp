@@ -12,17 +12,17 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::R
 
   // ros parameters
   pnh.param<int>("queue_size", queue_size, 5);
-  pnh.param<std::string>("tf_parent", tf_parent, "odometry");
-  pnh.param<std::string>("tf_child", tf_child, "rear_axis_middle_ground");
+  pnh.param<std::string>("static_frame", static_frame, "odometry");
+  pnh.param<std::string>("moving_frame", moving_frame, "rear_axis_middle_ground");
   pnh.param<std::string>("debug_file_path", debug_file_path, "/tmp/odom_debug.csv");
   pnh.param<bool>("debug_file", debug_file, false);
 
-  float reset_filter_thres_fl;
-  pnh.param<float>("reset_filter_thres", reset_filter_thres_fl, 0.5);
-  reset_filter_thres = ros::Duration(reset_filter_thres_fl);
+  float max_time_between_meas_fl;
+  pnh.param<float>("max_time_between_meas", max_time_between_meas_fl, 0.5);
+  max_time_between_meas = ros::Duration(max_time_between_meas_fl);
 
   // debug publisher
-  odo_pub = nh.advertise<nav_msgs::Odometry>(tf_parent, 0);
+  odo_pub = nh.advertise<nav_msgs::Odometry>(static_frame, 0);
 
   // debug file
   if(debug_file)
@@ -56,16 +56,24 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::R
   odo_sub = new message_filters::Subscriber<drive_ros_msgs::VehicleEncoder>(pnh, "odo_in", queue_size);
   imu_sub = new message_filters::Subscriber<sensor_msgs::Imu>(pnh, "imu_in", queue_size);
 
-  // parameters can be found here: http://wiki.ros.org/message_filters/ApproximateTime
+  // initialize policy and register sync callback
   policy = new SyncPolicy(queue_size);
-  policy->setAgePenalty(5);
-  policy->setInterMessageLowerBound(0, ros::Rate(300*2).expectedCycleTime());
-  policy->setInterMessageLowerBound(1, ros::Rate(300*2).expectedCycleTime());
-  policy->setMaxIntervalDuration(ros::Duration(0.001));
-
-
   sync = new message_filters::Synchronizer<SyncPolicy>(static_cast<SyncPolicy>(*policy), *odo_sub, *imu_sub);
   sync->registerCallback(boost::bind(&ImuOdoOdometry::syncCallback, this, _1, _2));
+
+  // parameters can be found here: http://wiki.ros.org/message_filters/ApproximateTime
+  double age_penalty, odo_topic_rate, imu_topic_rate, max_time_between_imu_odo;
+  pnh.param<double>("age_penalty", age_penalty, 300);
+  pnh.param<double>("odo_topic_rate", odo_topic_rate, 300);
+  pnh.param<double>("imu_topic_rate", imu_topic_rate, 300);
+  pnh.param<double>("max_time_between_imu_odo", max_time_between_imu_odo, 0.1);
+
+  policy->setAgePenalty(age_penalty);
+  policy->setMaxIntervalDuration(ros::Duration(max_time_between_imu_odo));
+
+  // lower bound should be half of the time period (= double the rate) for each topic
+  policy->setInterMessageLowerBound(0, ros::Rate(odo_topic_rate*2).expectedCycleTime());
+  policy->setInterMessageLowerBound(1, ros::Rate(imu_topic_rate*2).expectedCycleTime());
 
   // initialize Kalman filter state & covariances
   initFilterState();
@@ -214,11 +222,11 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoder &od
 {
 
   // time jump to big -> reset filter
-  if(std::abs(currentDelta.toNSec()) > reset_filter_thres.toNSec()){
+  if(std::abs(currentDelta.toNSec()) > max_time_between_meas.toNSec()){
 
     ROS_ERROR_STREAM("Delta Time Threshold exceeded. Reinit Filter."
         << " delta = " << currentDelta
-        << " thres = " << reset_filter_thres);
+        << " thres = " << max_time_between_meas);
 
    // reset covariances
    return false;
@@ -333,8 +341,8 @@ bool ImuOdoOdometry::publishCarState()
   // publish tf
   geometry_msgs::TransformStamped transformStamped;
   transformStamped.header.stamp = currentTimestamp;
-  transformStamped.header.frame_id = tf_parent;
-  transformStamped.child_frame_id = tf_child;
+  transformStamped.header.frame_id = static_frame;
+  transformStamped.child_frame_id = moving_frame;
   transformStamped.transform.translation.x = state.x();
   transformStamped.transform.translation.y = state.y();
   transformStamped.transform.translation.z = 0;
@@ -347,8 +355,8 @@ bool ImuOdoOdometry::publishCarState()
   // publish odometry message
   nav_msgs::Odometry odom;
   odom.header.stamp = currentTimestamp;
-  odom.header.frame_id = tf_parent;
-  odom.child_frame_id = tf_child;
+  odom.header.frame_id = static_frame;
+  odom.child_frame_id = moving_frame;
 
   // pose
   odom.pose.pose.position.x = state.x();

@@ -113,10 +113,10 @@ private:
   ros::Duration currentDelta;
 
   // parameter
-  ros::Duration reset_filter_thres;
+  ros::Duration max_time_between_meas;
   bool debug_file;
-  std::string tf_parent;
-  std::string tf_child;
+  std::string static_frame;
+  std::string moving_frame;
 
   // debug to file
   std::ofstream file_log;
