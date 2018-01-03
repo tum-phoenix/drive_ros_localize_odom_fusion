@@ -253,8 +253,31 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoder &od
   cov(Measurement::V,     Measurement::V)     = odo_msg.encoder[VeEnc::MOTOR].vel_var;
   mm.setCovariance(cov);
 
+
+  // calculate velocity
+  double vel = 0;
+
+  switch (odo_msg.encoder.size()) {
+  case 0: // no encoder
+    ROS_ERROR("We need at least one encoder, to work properly!");
+    return false;
+  case 1: // 1 motor encoder
+    vel = odo_msg.encoder[VeEnc::MOTOR].vel;
+    break;
+  case 4: // 4 wheel encoder
+    // calculate mean
+    for(int i=0; i<odo_msg.encoder.size(); i++){
+      vel += odo_msg.encoder[i].vel;
+    }
+    vel = vel/(float)odo_msg.encoder.size();
+    break;
+  default: // unknown number (just use first one as backup)
+    vel = odo_msg.encoder[0].vel;
+  }
+
+
   // set measurements vector z
-  z.v()     = odo_msg.encoder[VeEnc::MOTOR].vel;
+  z.v()     = vel;
   z.omega() = imu_msg.angular_velocity.z;
 
   if(ignore_acc_values){
