@@ -16,6 +16,7 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::R
   pnh.param<std::string>("moving_frame", moving_frame, "rear_axis_middle_ground");
   pnh.param<std::string>("debug_file_path", debug_file_path, "/tmp/odom_debug.csv");
   pnh.param<bool>("debug_file", debug_file, false);
+  pnh.param<bool>("ignore_acc_values", ignore_acc_values, false);
 
   float max_time_between_meas_fl;
   pnh.param<float>("max_time_between_meas", max_time_between_meas_fl, 0.5);
@@ -131,7 +132,7 @@ void ImuOdoOdometry::initFilterCov()
       pnh.getParam("kalman_cov/sys_var_theta", cov(State::THETA, State::THETA)) &&
       pnh.getParam("kalman_cov/sys_var_omega", cov(State::OMEGA, State::OMEGA)))
   {
-    ROS_INFO("Kalman initial process covariance loaded successfully");
+    ROS_INFO("Kalman process covariances loaded successfully");
   }else{
     ROS_ERROR("Error loading Kalman initial process covariance!");
     throw std::runtime_error("Error loading parameters");
@@ -254,9 +255,16 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoder &od
 
   // set measurements vector z
   z.v()     = odo_msg.encoder[VeEnc::MOTOR].vel;
-  z.ax()    = imu_msg.linear_acceleration.x;
-  z.ay()    = imu_msg.linear_acceleration.y;
   z.omega() = imu_msg.angular_velocity.z;
+
+  if(ignore_acc_values){
+    z.ax()    = 0;
+    z.ay()    = 0;
+  }else{
+    z.ax()    = imu_msg.linear_acceleration.x;
+    z.ay()    = imu_msg.linear_acceleration.y;
+  }
+
 
   ROS_DEBUG_STREAM("delta current: " << currentDelta);
   ROS_DEBUG_STREAM("measurementVector: " << z);

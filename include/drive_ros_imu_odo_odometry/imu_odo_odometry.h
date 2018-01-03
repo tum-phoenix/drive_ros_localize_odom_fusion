@@ -115,6 +115,7 @@ private:
   // parameter
   ros::Duration max_time_between_meas;
   bool debug_file;
+  bool ignore_acc_values;
   std::string static_frame;
   std::string moving_frame;
 

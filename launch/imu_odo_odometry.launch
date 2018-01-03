@@ -26,6 +26,10 @@
     -->
     <arg name="max_time_between_meas" default="0.1"/>
 
+
+    <!-- ignore acceleration (this can be usefull if acceleration from IMU is to noisy) -->
+    <arg name="ignore_acc_values" default="true" />
+
     <!-- tf parent frame of published tf -->
     <arg name="static_frame" default="odometry"/>
 
@@ -36,7 +40,7 @@
     <arg name="vehicle_config" default="$(find drive_ros_imu_odo_odometry)/config/phoenix_cc2017.yaml" />
 
     <!-- debug state to file -->
-    <arg name="debug_file" default="true" />
+    <arg name="debug_file" default="false" />
     <arg name="debug_file_path" default="/tmp/odom_debug.csv" />
 
     <!-- forward output to [screen|log] -->
@@ -57,6 +61,7 @@
         <param name="age_penalty" type="double" value="$(arg age_penalty)" />
         <param name="max_time_between_meas" type="double" value="$(arg max_time_between_meas)" />
         <param name="max_time_between_imu_odo" type="double" value="$(arg max_time_between_imu_odo)" />
+        <param name="ignore_acc_values" type="bool" value="$(arg ignore_acc_values)" />
         <param name="static_frame" type="str" value="$(arg static_frame)" />
         <param name="moving_frame" type="str" value="$(arg moving_frame)" />
         <param name="debug_file" type="bool" value ="$(arg debug_file)" />
