@@ -55,7 +55,7 @@ do
 done
 
 # check if all parameters are set
-if [ $TRAIL -eq -1 ]
+if [ $TRAIL = "-1" ]
 then
 	help
 fi
@@ -109,30 +109,31 @@ fi
 . /opt/ros/kinetic/setup.bash
 . "$CATKIN_WS"/devel/setup.bash
 
-# avoid port number smaller than 11320 and higher than 65535
-PORT=$((11320 + $TRAIL%(65535-11320)))
+# avoid port number smaller than 11320 and higher than 15320
+PORT=$((11320 + $TRAIL%(15320-11320)))
 
 # get bag duration
 BAG_DURATION=$(rosbag info "$BAGFILE" | grep -oP 'duration[\s\:s\d]*\(\K(\d*)')
 
+# try to minimize possibility of port collisions
+while [ $(nc -z localhost $PORT && echo 1) ]
+do
+  PORT=$(($PORT+1))
+done
 
 # set indivdual port for each trial (to run multiple trails in parallel)
 export ROS_MASTER_URI=http://localhost:$PORT
 
 # start roscore
-timeout $(($BAG_DURATION+6))s roscore -p $PORT &> "$LOGDIR"/out.log &
+timeout $(($BAG_DURATION+6))s nice -n -5 roscore -p $PORT &> "$LOGDIR"/out.log &
 sleep 2
-
-# start mavlink
-timeout $(($BAG_DURATION+4))s roslaunch drive_ros_mavlink_cc2016 mavlink_CC2016.launch &> "$LOGDIR"/out.log &
-sleep 1
 
 # start odometry
 timeout $(($BAG_DURATION+2))s roslaunch drive_ros_imu_odo_odometry imu_odo_odometry.launch  debug_file:=true debug_file_path:="$LOGDIR"/odom.csv vehicle_config:="$VEHICLECONFIG" &> "$LOGDIR"/out.log &
 sleep 1
 
 # play back the rosbag
-rosbag play "$BAGFILE"
+nice -n -5 rosbag play "$BAGFILE" -q &> "$LOGDIR"/out.log
 
 exit 0
 

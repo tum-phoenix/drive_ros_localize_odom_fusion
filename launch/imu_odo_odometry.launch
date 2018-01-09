@@ -28,7 +28,7 @@
 
 
     <!-- ignore acceleration (this can be usefull if acceleration from IMU is to noisy) -->
-    <arg name="ignore_acc_values" default="true" />
+    <arg name="ignore_acc_values" default="false" />
 
     <!-- tf parent frame of published tf -->
     <arg name="static_frame" default="odometry"/>
@@ -48,7 +48,7 @@
 
     <!-- define nice value of process (lower means higher priority) [-20;19] -->
     <!-- more infos: https://en.wikipedia.org/wiki/Nice_(Unix) -->
-    <arg name="nice_val_pre" default="nice -n -2"/>
+    <arg name="nice_val_pre" default="nice -n -5"/>
 
     <node name="imu_ros_odometry" pkg="drive_ros_imu_odo_odometry" type="drive_ros_imu_odo_odometry_node"
           output="$(arg output)" launch-prefix="$(arg nice_val_pre)" >
