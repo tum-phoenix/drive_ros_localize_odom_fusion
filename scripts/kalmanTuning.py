@@ -40,6 +40,7 @@ def objective(params):
 
     # create directory for this trial
     os.makedirs(path_results + str(trial))
+    print("  Start trial with number: "+str(trial))
 
     # config file path
     yaml_config = path_results + str(trial) + "/config.yaml"
@@ -71,8 +72,10 @@ def objective(params):
     # evaluate return code of trial runner
     if 0 == p.returncode:
         status = STATUS_OK
+        print("  Trial successfull!")
     else:
         status = STATUS_FAIL
+        print("  Trial failed!")
 
 
     # calculate loss
@@ -87,6 +90,7 @@ def objective(params):
         y = float(lastrow[3])  # y position at the end
 
         loss = math.sqrt(x * x + y * y)  # distance from start to the end (assume we drive a circle)
+        print("  Loss is: " + str(loss))
 
     # return trial results
     return {
@@ -101,6 +105,7 @@ def objective(params):
 if __name__ == "__main__":
 
     # parse arguments
+    print("Parse arguments")
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='Main Kalman Tuning script. Creates all trials and connects to the MongoDB where results are stored.')
@@ -111,6 +116,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # create search space
+    print("Create search space")
     space = {
         'x': hp.uniform('x', 0, 1),
         'y': hp.uniform('y', 0, 1),
@@ -132,7 +138,9 @@ if __name__ == "__main__":
 
 
     # find the hyperparameters
+    print("Start fmin ...")
     best = fmin(objective, space, algo, max_evals, trials)
+    print("Finished fmin :=)")
 
     # save results to file
     with open(path_results + args.experiment + "_results.csv", 'w') as csvfile:
@@ -140,4 +148,7 @@ if __name__ == "__main__":
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
         for result in trials.results:
+            print("Write result of " + str(result['eval_time']) + " to file ...")
             writer.writerow(result)
+
+
