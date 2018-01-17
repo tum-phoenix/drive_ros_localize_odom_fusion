@@ -17,6 +17,7 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::R
   pnh.param<std::string>("debug_file_path", debug_file_path, "/tmp/odom_debug.csv");
   pnh.param<bool>("debug_file", debug_file, false);
   pnh.param<bool>("ignore_acc_values", ignore_acc_values, false);
+  pnh.param<bool>("use_sensor_time_for_pub", use_sensor_time_for_pub, false);
 
   float max_time_between_meas_fl;
   pnh.param<float>("max_time_between_meas", max_time_between_meas_fl, 0.5);
@@ -395,10 +396,17 @@ bool ImuOdoOdometry::publishCarState()
 
   }
 
+  // output time
+  ros::Time out_time = ros::Time::now();
+  if(use_sensor_time_for_pub)
+  {
+    out_time = currentTimestamp;
+  }
+
 
   // publish tf
   geometry_msgs::TransformStamped transformStamped;
-  transformStamped.header.stamp = currentTimestamp;
+  transformStamped.header.stamp = out_time;
   transformStamped.header.frame_id = static_frame;
   transformStamped.child_frame_id = moving_frame;
   transformStamped.transform.translation.x = state.x();
@@ -412,7 +420,7 @@ bool ImuOdoOdometry::publishCarState()
 
   // publish odometry message
   nav_msgs::Odometry odom;
-  odom.header.stamp = currentTimestamp;
+  odom.header.stamp = out_time;
   odom.header.frame_id = static_frame;
   odom.child_frame_id = moving_frame;
 

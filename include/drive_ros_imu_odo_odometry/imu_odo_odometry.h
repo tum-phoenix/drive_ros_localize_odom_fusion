@@ -128,6 +128,7 @@ private:
   ros::Duration max_time_between_meas;
   bool debug_file;
   bool ignore_acc_values;
+  bool use_sensor_time_for_pub;
   std::string static_frame;
   std::string moving_frame;
 
