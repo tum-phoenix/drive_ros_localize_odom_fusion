@@ -78,7 +78,11 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::R
 
   // initialize Kalman filter state & covariances
   initFilterState();
-  initFilterCov();
+  initFilterProcessCov();
+
+  // init services
+  reload_proc_cov = pnh.advertiseService("reload_proc_cov", &ImuOdoOdometry::svr_reload_proc_cov, this);
+  reinit_state =    pnh.advertiseService("reinit_state",    &ImuOdoOdometry::svr_reinit_state,    this);
 
 }
 
@@ -87,6 +91,27 @@ ImuOdoOdometry::~ImuOdoOdometry()
 {
   file_log.close();
 }
+
+// reload process covariances
+bool ImuOdoOdometry::svr_reload_proc_cov(std_srvs::Trigger::Request  &req,
+                                         std_srvs::Trigger::Response &res)
+{
+  initFilterProcessCov();
+
+  res.message = "Kalman filter process covariances reloaded from parameter server.";
+  return res.success = true;
+}
+
+// reinit kalman state
+bool ImuOdoOdometry::svr_reinit_state(std_srvs::Trigger::Request  &req,
+                                      std_srvs::Trigger::Response &res)
+{
+  initFilterState();
+
+  res.message = "Kalman filter state reinitialized. Set state to 0 and load initial state covariances";
+  return res.success = true;
+}
+
 
 // initialize Filter State
 void ImuOdoOdometry::initFilterState()
@@ -97,11 +122,7 @@ void ImuOdoOdometry::initFilterState()
   State s;
   s.setZero();
   filter.init(s);
-}
 
-// initialize Filter covariances
-void ImuOdoOdometry::initFilterCov()
-{
   // Set initial state covariance
   Kalman::Covariance<State> stateCov;
   stateCov.setZero();
@@ -121,6 +142,18 @@ void ImuOdoOdometry::initFilterCov()
 
   filter.setCovariance(stateCov);
 
+
+  // reset initial times
+  odo_msg.header.stamp = ros::Time(0);
+  imu_msg.header.stamp = ros::Time(0);
+  lastTimestamp        = ros::Time(0);
+
+}
+
+// initialize Filter covariances
+void ImuOdoOdometry::initFilterProcessCov()
+{
+
   // Set process noise covariance
   Kalman::Covariance<State> cov;
   cov.setZero();
@@ -134,17 +167,11 @@ void ImuOdoOdometry::initFilterCov()
   {
     ROS_INFO("Kalman process covariances loaded successfully");
   }else{
-    ROS_ERROR("Error loading Kalman initial process covariance!");
+    ROS_ERROR("Error loading Kalman process covariance!");
     throw std::runtime_error("Error loading parameters");
   }
 
   sys.setCovariance(cov);
-
-  // reset initial times
-  odo_msg.header.stamp = ros::Time(0);
-  imu_msg.header.stamp = ros::Time(0);
-  lastTimestamp        = ros::Time(0);
-
 }
 
 // callback if both odo and imu messages with same timestamp have arrived
@@ -210,7 +237,7 @@ void ImuOdoOdometry::computeOdometry()
   }else{
 
     // something went wrong reinitialize Kalman Filter covariances
-    initFilterCov();
+    initFilterProcessCov();
   }
 
   // save timestamp

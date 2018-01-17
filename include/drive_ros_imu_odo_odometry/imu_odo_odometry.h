@@ -22,6 +22,9 @@
 #include "drive_ros_msgs/VehicleEncoder.h"
 #include "drive_ros_msgs/TimeCompare.h"
 
+// ros services
+#include <std_srvs/Trigger.h>
+
 // kalman
 #include <kalman/ExtendedKalmanFilter.hpp>
 #include "measurement_model.h"
@@ -60,8 +63,8 @@ public:
 private:
 
   // initialize Kalman Filter
-  void initFilterCov();
   void initFilterState();
+  void initFilterProcessCov();
 
 
   // collect data and prepare computing
@@ -80,6 +83,11 @@ private:
                     const sensor_msgs::ImuConstPtr &msg_imu);
 
 
+  // services
+  bool svr_reload_proc_cov(std_srvs::Trigger::Request  &req,
+                           std_srvs::Trigger::Response &res);
+  bool svr_reinit_state(std_srvs::Trigger::Request  &req,
+                        std_srvs::Trigger::Response &res);
 
   // ROS subscriber + synchronizer
   message_filters::Subscriber<sensor_msgs::Imu> *imu_sub;
@@ -94,6 +102,10 @@ private:
   ros::Rate rate;
   ros::NodeHandle nh;
   ros::NodeHandle pnh;
+
+  // services
+  ros::ServiceServer reload_proc_cov;
+  ros::ServiceServer reinit_state;
 
   // ROS local message storage + mutex
   drive_ros_msgs::VehicleEncoder odo_msg;
