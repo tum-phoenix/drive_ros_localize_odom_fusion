@@ -1,18 +1,18 @@
 kalman_cov:
 
     # INITIAL COVARIANCES
-    filter_init_var_x: 0.01
-    filter_init_var_y: 0.01
-    filter_init_var_a: 0.01
-    filter_init_var_v: 0.01
-    filter_init_var_theta: 0.01
-    filter_init_var_omega: 0.01
+    filter_init_var_x:     0.0
+    filter_init_var_y:     0.0
+    filter_init_var_a:     0.0
+    filter_init_var_v:     0.0
+    filter_init_var_theta: 0.0
+    filter_init_var_omega: 0.0
 
 
     # PROCESS COVARIANCES
-    sys_var_x: 0.001
-    sys_var_y: 0.001
-    sys_var_a: 0.0024
-    sys_var_v: 0.0004
-    sys_var_theta: 0.008
-    sys_var_omega: 0.03
+    sys_var_x: 0.000001
+    sys_var_y: 0.000001
+    sys_var_a: 0.0001
+    sys_var_v: 0.0001
+    sys_var_theta: 0.000001
+    sys_var_omega: 0.01

@@ -433,14 +433,22 @@ bool ImuOdoOdometry::publishCarState()
   odom.pose.pose.orientation.z = q1.z();
   odom.pose.pose.orientation.w = q1.w();
   odom.pose.covariance[CovElem::lin_ang::linX_linX] = cov_ft(State::X,      State::X);
+  odom.pose.covariance[CovElem::lin_ang::linX_linY] = cov_ft(State::X,      State::Y);
+  odom.pose.covariance[CovElem::lin_ang::linX_angZ] = cov_ft(State::X,      State::THETA);
   odom.pose.covariance[CovElem::lin_ang::linY_linY] = cov_ft(State::Y,      State::Y);
+  odom.pose.covariance[CovElem::lin_ang::linY_linX] = cov_ft(State::Y,      State::X);
+  odom.pose.covariance[CovElem::lin_ang::linY_angZ] = cov_ft(State::Y,      State::THETA);
   odom.pose.covariance[CovElem::lin_ang::angZ_angZ] = cov_ft(State::THETA,  State::THETA);
+  odom.pose.covariance[CovElem::lin_ang::angZ_linX] = cov_ft(State::THETA,  State::X);
+  odom.pose.covariance[CovElem::lin_ang::angZ_linY] = cov_ft(State::THETA,  State::Y);
 
   // twist
   odom.twist.twist.linear.x = state.v();
   odom.twist.twist.angular.z = state.omega();
   odom.twist.covariance[CovElem::lin_ang::linX_linX] = cov_ft(State::V,      State::V);
+  odom.twist.covariance[CovElem::lin_ang::linX_angZ] = cov_ft(State::V,      State::OMEGA);
   odom.twist.covariance[CovElem::lin_ang::angZ_angZ] = cov_ft(State::OMEGA,  State::OMEGA);
+  odom.twist.covariance[CovElem::lin_ang::linX_angZ] = cov_ft(State::V,      State::OMEGA);
 
   odo_pub.publish(odom);
 
