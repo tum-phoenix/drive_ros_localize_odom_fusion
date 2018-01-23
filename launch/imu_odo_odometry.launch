@@ -45,7 +45,7 @@
         advantage: published time is similar to sensor data time
         disadvantage: can cause problems with time jumps, when replaying bags
     -->
-    <arg name="use_sensor_time_for_pub" default="true" />
+    <arg name="use_sensor_time_for_pub" default="false" />
 
     <!-- debug state to file -->
     <arg name="debug_file" default="false" />
