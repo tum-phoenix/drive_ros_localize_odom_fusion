@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   kalman
   std_srvs
+  rosbag
 )
 
 
@@ -132,7 +133,9 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
  add_executable(${PROJECT_NAME}_node src/imu_odo_odometry.cpp
                                      src/imu_odo_odometry_node.cpp
-                                     src/imu_odo_odometry_debug_file.cpp)
+                                     src/imu_odo_odometry_debug.cpp
+                                     src/imu_odo_odometry_services.cpp
+                                     )
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

@@ -1,14 +1,14 @@
 #include "drive_ros_imu_odo_odometry/imu_odo_odometry.h"
 
 // constructor (initialize everything)
-ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::Rate& r):
-  nh(nh), pnh(pnh), rate(r)
+ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, bool use_bag):
+  nh(nh), pnh(pnh), use_bag(use_bag)
 {
   // queue for subscribers and sync policy
   int queue_size;
 
   // file path
-  std::string debug_in_file_path, debug_out_file_path;
+  std::string bag_file_path, debug_out_file_path;
 
   // ros parameters
   pnh.param<int>("queue_size", queue_size, 5);
@@ -17,33 +17,39 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::R
   pnh.param<bool>("ignore_acc_values", ignore_acc_values, false);
   pnh.param<bool>("use_sensor_time_for_pub", use_sensor_time_for_pub, false);
 
-  pnh.param<std::string>("debug_in_file_path", debug_in_file_path, "/tmp/odom_debug.csv");
-  pnh.param<bool>("debug_in", debug_out_file, false);
-  pnh.param<std::string>("debug_out_file_path", debug_out_file_path, "/tmp/odom_debug.csv");
-  pnh.param<bool>("debug_out", debug_in_file, false);
+  pnh.param<std::string>("odo_topic_name", odo_topic_name, "/odo");
+  pnh.param<std::string>("imu_topic_name", imu_topic_name, "/imu");
 
+  pnh.param<std::string>("debug_out_file_path", debug_out_file_path, "/tmp/odom_debug.csv");
+  pnh.param<bool>("debug_out", debug_out_file, false);
 
   float max_time_between_meas_fl;
   pnh.param<float>("max_time_between_meas", max_time_between_meas_fl, 0.5);
   max_time_between_meas = ros::Duration(max_time_between_meas_fl);
 
-  // debug publisher
+  // odometry publisher
   odo_pub = nh.advertise<nav_msgs::Odometry>(static_frame, 0);
 
   // debug file
-  if(debug_out_file)
-  {
+  if(debug_out_file){
     write_output_header(debug_out_file_path);
   }
 
-  if(debug_in_file)
-  {
-    write_input_header(debug_in_file_path);
-  }
+  // input of messages (read from bag file or create real subscribers)
+  if(use_bag){
 
-  // init subscribers
-  odo_sub = new message_filters::Subscriber<drive_ros_msgs::VehicleEncoder>(pnh, "odo_in", queue_size);
-  imu_sub = new message_filters::Subscriber<sensor_msgs::Imu>(pnh, "imu_in", queue_size);
+    // fake subscriber
+    odo_sub = new message_filters::Subscriber<drive_ros_msgs::VehicleEncoder>();
+    imu_sub = new message_filters::Subscriber<sensor_msgs::Imu>();
+
+
+  }else{
+
+    // real subscribers
+    odo_sub = new message_filters::Subscriber<drive_ros_msgs::VehicleEncoder>(pnh, odo_topic_name, queue_size);
+    imu_sub = new message_filters::Subscriber<sensor_msgs::Imu>(pnh, imu_topic_name, queue_size);
+
+  }
 
   // initialize policy and register sync callback
   policy = new SyncPolicy(queue_size);
@@ -80,25 +86,6 @@ ImuOdoOdometry::~ImuOdoOdometry()
   file_out_log.close();
 }
 
-// reload process covariances
-bool ImuOdoOdometry::svr_reload_proc_cov(std_srvs::Trigger::Request  &req,
-                                         std_srvs::Trigger::Response &res)
-{
-  initFilterProcessCov();
-
-  res.message = "Kalman filter process covariances reloaded from parameter server.";
-  return res.success = true;
-}
-
-// reinit kalman state
-bool ImuOdoOdometry::svr_reinit_state(std_srvs::Trigger::Request  &req,
-                                      std_srvs::Trigger::Response &res)
-{
-  initFilterState();
-
-  res.message = "Kalman filter state reinitialized. Set state to 0 and load initial state covariances";
-  return res.success = true;
-}
 
 
 // initialize Filter State
@@ -132,9 +119,9 @@ void ImuOdoOdometry::initFilterState()
 
 
   // reset initial times
-  odo_msg.header.stamp = ros::Time(0);
-  imu_msg.header.stamp = ros::Time(0);
   lastTimestamp        = ros::Time(0);
+  currentDelta         = ros::Duration(0);
+  lastDelta             = ros::Duration(0);
 
 }
 
@@ -162,47 +149,35 @@ void ImuOdoOdometry::initFilterProcessCov()
   sys.setCovariance(cov);
 }
 
+
+
 // callback if both odo and imu messages with same timestamp have arrived
 void ImuOdoOdometry::syncCallback(const drive_ros_msgs::VehicleEncoderConstPtr &msg_odo,
                                   const sensor_msgs::ImuConstPtr &msg_imu)
 {
 
-  // debug input message to file
-  if(debug_in_file){
-    write_input_msgs(msg_odo, msg_imu);
-  }
-
-  mut.lock();
-  odo_msg = *msg_odo;
-  imu_msg = *msg_imu;
-  mut.unlock();
-
   ROS_DEBUG_STREAM("Got new callback with times. IMU: " << msg_imu->header.stamp
                                            << " Odom: " << msg_odo->header.stamp
-                                           << " Diff: " << msg_imu->header.stamp - msg_odo->header.stamp);
+                                           << " Diff: " << msg_imu->header.stamp.toSec() - msg_odo->header.stamp.toSec());
+  computeOdometry(msg_odo, msg_imu);
 
 }
 
 
-// this function is being called in a separate thread at a constant rate
-void ImuOdoOdometry::computeOdometry()
+// calculates the odometry
+void ImuOdoOdometry::computeOdometry(const drive_ros_msgs::VehicleEncoderConstPtr &msg_odo,
+                                     const sensor_msgs::ImuConstPtr &msg_imu)
 {
 
-  mut.lock();
-  const drive_ros_msgs::VehicleEncoder local_odo = odo_msg;
-  const sensor_msgs::Imu local_imu = imu_msg;
-  mut.unlock();
-
-
   // check if timestamps are 0
-  if(ros::Time(0) == local_imu.header.stamp || ros::Time(0) == local_odo.header.stamp)
+  if(ros::Time(0) == msg_imu->header.stamp || ros::Time(0) == msg_odo->header.stamp)
   {
-    ROS_WARN("Didn't receive any new sensor message yet. Waiting...");
+    ROS_WARN("A timestamp is 0. Skipping messages.");
     return;
   }
 
   // set timestamp
-  currentTimestamp = ros::Time((local_imu.header.stamp.toSec() + local_odo.header.stamp.toSec())/2);
+  currentTimestamp = ros::Time((msg_imu->header.stamp.toSec() + msg_odo->header.stamp.toSec())/2);
 
 
   // check if this is first loop or reinitialized
@@ -213,12 +188,10 @@ void ImuOdoOdometry::computeOdometry()
     currentDelta = ( currentTimestamp - lastTimestamp );
   }
 
-
-
   // do all the kalman filter magic
   if(
        // 1. compute measurement update
-       computeMeasurement(local_odo, local_imu) &&
+       computeMeasurement(msg_odo, msg_imu) &&
 
        // 2. compute Kalman filter step
        computeFilterStep() &&
@@ -234,13 +207,13 @@ void ImuOdoOdometry::computeOdometry()
     initFilterProcessCov();
   }
 
-  // save timestamp
+  // save timestamp and delta
   lastTimestamp = currentTimestamp;
 
 }
 
-bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoder &odo_msg,
-                                        const sensor_msgs::Imu &imu_msg)
+bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoderConstPtr &odo_msg,
+                                        const sensor_msgs::ImuConstPtr &imu_msg)
 {
 
   // time jump to big -> reset filter
@@ -256,57 +229,52 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoder &od
   // jumping back in time
   }else if(currentDelta < ros::Duration(0)) {
       ROS_WARN_STREAM("Jumping back in time."
-          << " delta = " << currentDelta);
+          << " delta = " << currentDelta.toSec());
 
       // reset times
       currentTimestamp = lastTimestamp;
       currentDelta = ros::Duration(0);
   }
 
-
-
   // Set measurement covariances
   Kalman::Covariance<Measurement> cov;
   cov.setZero();
-  cov(Measurement::AX,    Measurement::AX)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linX_linX];
-  cov(Measurement::AY,    Measurement::AY)    = imu_msg.linear_acceleration_covariance[CovElem::lin::linY_linY];
-  cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg.angular_velocity_covariance[CovElem::ang::angZ_angZ];
-  cov(Measurement::V,     Measurement::V)     = odo_msg.encoder[VeEnc::MOTOR].vel_var;
+  cov(Measurement::AX,    Measurement::AX)    = imu_msg->linear_acceleration_covariance[CovElem::lin::linX_linX];
+  cov(Measurement::AY,    Measurement::AY)    = imu_msg->linear_acceleration_covariance[CovElem::lin::linY_linY];
+  cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg->angular_velocity_covariance[CovElem::ang::angZ_angZ];
+  cov(Measurement::V,     Measurement::V)     = odo_msg->encoder[VeEnc::MOTOR].vel_var;
   mm.setCovariance(cov);
 
 
   // calculate velocity
   double vel = 0;
+  if(0 == odo_msg->encoder.size())
+  {
 
-  switch (odo_msg.encoder.size()) {
-  case 0: // no encoder
     ROS_ERROR("We need at least one encoder, to work properly!");
     return false;
-  case 1: // 1 motor encoder
-    vel = odo_msg.encoder[VeEnc::MOTOR].vel;
-    break;
-  case 4: // 4 wheel encoder
+
+  }else{
+
     // calculate mean
-    for(int i=0; i<odo_msg.encoder.size(); i++){
-      vel += odo_msg.encoder[i].vel;
+    for(int i=0; i<odo_msg->encoder.size(); i++){
+      vel += odo_msg->encoder[i].vel;
     }
-    vel = vel/(float)odo_msg.encoder.size();
-    break;
-  default: // unknown number (just use first one as backup)
-    vel = odo_msg.encoder[0].vel;
+    vel = vel/(float)odo_msg->encoder.size();
+
   }
 
 
   // set measurements vector z
   z.v()     = vel;
-  z.omega() = imu_msg.angular_velocity.z;
+  z.omega() = imu_msg->angular_velocity.z;
 
   if(ignore_acc_values){
     z.ax()    = 0;
     z.ay()    = 0;
   }else{
-    z.ax()    = imu_msg.linear_acceleration.x;
-    z.ay()    = imu_msg.linear_acceleration.y;
+    z.ax()    = imu_msg->linear_acceleration.x;
+    z.ay()    = imu_msg->linear_acceleration.y;
   }
 
 
@@ -336,10 +304,10 @@ bool ImuOdoOdometry::computeFilterStep()
   // no new data avialable
   if(ros::Duration(0) == currentDelta) {
 
-      // use rate
-      u.dt() = rate.expectedCycleTime().toSec();
+      // use last delta
+      u.dt() = lastDelta.toSec();
 
-      ROS_DEBUG_STREAM("Time delta is zero. Use Expected Cycle Time instead: " << rate.expectedCycleTime());
+      ROS_DEBUG_STREAM("Time delta is zero. Using old delta: " << lastDelta);
 
   // new data available
   } else {
@@ -348,6 +316,9 @@ bool ImuOdoOdometry::computeFilterStep()
       u.dt() = currentDelta.toSec();
 
       ROS_DEBUG_STREAM("Use Time delta of: " << currentDelta);
+
+      // save current delta
+      lastDelta = currentDelta;
 
   }
 
@@ -367,9 +338,6 @@ bool ImuOdoOdometry::publishCarState()
 
   const auto& cov_ft = filter.getCovariance();
   ROS_DEBUG_STREAM("FilterCovariance: " << cov_ft);
-
-  const auto& cov_mm = mm.getCovariance();
-  ROS_DEBUG_STREAM("measurementCovariance: " << cov_mm);
 
   tf2::Quaternion q1;
   q1.setRPY(0, 0, state.theta());
@@ -395,7 +363,6 @@ bool ImuOdoOdometry::publishCarState()
   {
     out_time = currentTimestamp;
   }
-
 
   // publish tf
   geometry_msgs::TransformStamped transformStamped;

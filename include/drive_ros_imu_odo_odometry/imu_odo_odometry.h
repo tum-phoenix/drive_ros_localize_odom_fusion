@@ -9,6 +9,9 @@
 
 // ros
 #include <ros/ros.h>
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
+#include <boost/foreach.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <message_filters/subscriber.h>
@@ -37,12 +40,13 @@ class ImuOdoOdometry
 {
 public:
   //! Constructor.
-  ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::Rate& r);
+  ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, bool use_bag);
 
   //! Destructor.
   ~ImuOdoOdometry();
 
-  void computeOdometry();
+
+  bool processBag(std::string bag_file_path);
 
   typedef float T;
 
@@ -58,21 +62,19 @@ public:
 
   typedef message_filters::sync_policies::ApproximateTime<drive_ros_msgs::VehicleEncoder,
                                                           sensor_msgs::Imu> SyncPolicy;
-
-  // inject messages directly (only for debug)
-  void set_imu_msg(const sensor_msgs::Imu &msg){mut.lock(); imu_msg = msg; mut.unlock();};
-  void set_odo_msg(const drive_ros_msgs::VehicleEncoder &msg){mut.lock(); odo_msg = msg; mut.unlock();};
-
 private:
 
   // initialize Kalman Filter
   void initFilterState();
   void initFilterProcessCov();
 
+  // computes the actual odometry
+  void computeOdometry(const drive_ros_msgs::VehicleEncoderConstPtr &msg_odo,
+                       const sensor_msgs::ImuConstPtr &msg_imu);
 
   // collect data and prepare computing
-  bool computeMeasurement(const drive_ros_msgs::VehicleEncoder &odo_msg,
-                          const sensor_msgs::Imu &imu_msg);
+  bool computeMeasurement(const drive_ros_msgs::VehicleEncoderConstPtr &odo_msg,
+                          const sensor_msgs::ImuConstPtr &imu_msg);
 
   // compute one kalman step
   bool computeFilterStep();
@@ -94,10 +96,6 @@ private:
 
 
   // debug file operations
-  void write_input_header(std::string filename);
-  void write_input_msgs(const drive_ros_msgs::VehicleEncoderConstPtr &msg_odo,
-                        const sensor_msgs::ImuConstPtr &msg_imu);
-
   void write_output_header(std::string filename);
   void write_output_result(const nav_msgs::Odometry* msg);
 
@@ -110,19 +108,12 @@ private:
   // ROS publisher or broadcaster
   tf2_ros::TransformBroadcaster br;
   ros::Publisher odo_pub;
-
-  ros::Rate rate;
   ros::NodeHandle nh;
   ros::NodeHandle pnh;
 
   // services
   ros::ServiceServer reload_proc_cov;
   ros::ServiceServer reinit_state;
-
-  // ROS local message storage + mutex
-  drive_ros_msgs::VehicleEncoder odo_msg;
-  sensor_msgs::Imu imu_msg;
-  std::mutex mut;
 
   // kalman filter stuff
   Control u;
@@ -135,6 +126,7 @@ private:
   ros::Time lastTimestamp;
   ros::Time currentTimestamp;
   ros::Duration currentDelta;
+  ros::Duration lastDelta;
 
   // parameter
   ros::Duration max_time_between_meas;
@@ -142,13 +134,15 @@ private:
   bool use_sensor_time_for_pub;
   std::string static_frame;
   std::string moving_frame;
+  std::string odo_topic_name;
+  std::string imu_topic_name;
 
   // debug to file
   bool debug_out_file;
   std::ofstream file_out_log;
 
-  bool debug_in_file;
-  std::ofstream file_in_log;
+  // bag file
+  bool use_bag;
 
 };
 

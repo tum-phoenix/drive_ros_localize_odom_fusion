@@ -4,11 +4,8 @@
     <arg name="odo_topic_rate" default="300"/>
 
     <!-- IMU topic -->
-    <arg name="imu_topic_name" default="/from_mav/imu"/>
+    <arg name="imu_topic_name" default="/from_mav/imu/data_raw"/>
     <arg name="imu_topic_rate" default="300"/>
-
-    <!-- rate at which the odometry calculation will run (limited by the input topics rates) -->
-    <arg name="rate" default="100"/>
 
     <!-- size of subscriber and sync policy queues -->
     <arg name="queue_size" default="10"/>
@@ -47,13 +44,13 @@
     -->
     <arg name="use_sensor_time_for_pub" default="false" />
 
-    <!-- debug input to file -->
-    <arg name="debug_in" default="false" />
-    <arg name="debug_in_file_path" default="/tmp/in_debug.csv" />
+    <!-- debug odometry output to file -->
+    <arg name="debug_out" default="true" />
+    <arg name="debug_out_file_path" default="/tmp/out_debug_2.csv" />
 
-    <!-- debug state to file -->
-    <arg name="debug_out" default="false" />
-    <arg name="debug_out_file_path" default="/tmp/out_debug.csv" />
+    <!-- read messages from bag file instead of incoming messages -->
+    <arg name="read_from_bag" default="false" />
+    <arg name="bag_file_path" default="$(find drive_ros_imu_odo_odometry)/data/circle.bag" />
 
     <!-- forward output to [screen|log] -->
     <arg name="output" default="screen"/>
@@ -64,11 +61,10 @@
 
     <node name="imu_ros_odometry" pkg="drive_ros_imu_odo_odometry" type="drive_ros_imu_odo_odometry_node"
           output="$(arg output)" launch-prefix="$(arg nice_val_pre)" >
-        <remap from="~/odo_in" to="$(arg odo_topic_name)"/>
-        <remap from="~/imu_in" to="$(arg imu_topic_name)"/>
+        <param name="odo_topic_name" type="str" value="$(arg odo_topic_name)"/>
+        <param name="imu_topic_name" type="str" value="$(arg imu_topic_name)"/>
         <param name="odo_topic_rate" type="int" value="$(arg odo_topic_rate)" />
         <param name="imu_topic_rate" type="int" value="$(arg imu_topic_rate)" />
-        <param name="rate" type="int" value="$(arg rate)" />
         <param name="queue_size" type="int" value="$(arg queue_size)" />
         <param name="age_penalty" type="double" value="$(arg age_penalty)" />
         <param name="max_time_between_meas" type="double" value="$(arg max_time_between_meas)" />
@@ -77,10 +73,10 @@
         <param name="static_frame" type="str" value="$(arg static_frame)" />
         <param name="moving_frame" type="str" value="$(arg moving_frame)" />
         <param name="use_sensor_time_for_pub" type="bool" value="$(arg use_sensor_time_for_pub)" />
-        <param name="debug_in" type="bool" value ="$(arg debug_in)" />
-        <param name="debug_in_file_path" type="str" value ="$(arg debug_in_file_path)" />
         <param name="debug_out" type="bool" value ="$(arg debug_out)" />
         <param name="debug_out_file_path" type="str" value ="$(arg debug_out_file_path)" />
+        <param name="read_from_bag" type="bool" value ="$(arg read_from_bag)" />
+        <param name="bag_file_path" type="str" value ="$(arg bag_file_path)" />
         <rosparam command="load" file="$(arg vehicle_config)"/>
     </node>
 </launch>

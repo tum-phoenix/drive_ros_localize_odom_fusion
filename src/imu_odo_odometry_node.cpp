@@ -1,14 +1,5 @@
 #include "drive_ros_imu_odo_odometry/imu_odo_odometry.h"
 
-// separate thread to run odometry with a different rate
-void odoThread(ros::Rate r, ImuOdoOdometry* odom)
-{
-  while(ros::ok()){
-    odom->computeOdometry();
-    r.sleep();
-  }
-}
-
 // main function
 int main(int argc, char **argv)
 {
@@ -17,27 +8,33 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
 
-  // rate at which the node will run
-  int rate;
-  pnh.param<int>("rate", rate, 100);
-  ros::Rate r(rate);
-
 #ifndef NDEBUG
   // give GDB time to attach
   ros::Duration(2.0).sleep();
 #endif
 
-  ImuOdoOdometry odom(nh, pnh, r);
+  std::string bag_file_path;
+  bool use_bag;
+  pnh.param<std::string>("bag_file_path", bag_file_path, "/tmp/in.bag");
+  pnh.param<bool>("read_from_bag", use_bag, false);
+
+
+  ImuOdoOdometry odom(nh, pnh, use_bag);
   ROS_INFO("IMU & Odometer odometry node succesfully initialized");
 
 
-  // start odometry thread
-  std::thread odo(odoThread, r, &odom);
+  if(use_bag){
 
-  // forever loop
-  while(ros::ok()){
-    ros::spin();
+    odom.processBag(bag_file_path);
+
+  }else{
+
+    // forever loop
+    while(ros::ok()){
+      ros::spin();
+    }
   }
+
 
   return 0;
 }
