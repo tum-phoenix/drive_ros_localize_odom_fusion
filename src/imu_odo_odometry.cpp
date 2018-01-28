@@ -8,16 +8,20 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::R
   int queue_size;
 
   // file path
-  std::string debug_file_path;
+  std::string debug_in_file_path, debug_out_file_path;
 
   // ros parameters
   pnh.param<int>("queue_size", queue_size, 5);
   pnh.param<std::string>("static_frame", static_frame, "odometry");
   pnh.param<std::string>("moving_frame", moving_frame, "rear_axis_middle_ground");
-  pnh.param<std::string>("debug_file_path", debug_file_path, "/tmp/odom_debug.csv");
-  pnh.param<bool>("debug_file", debug_file, false);
   pnh.param<bool>("ignore_acc_values", ignore_acc_values, false);
   pnh.param<bool>("use_sensor_time_for_pub", use_sensor_time_for_pub, false);
+
+  pnh.param<std::string>("debug_in_file_path", debug_in_file_path, "/tmp/odom_debug.csv");
+  pnh.param<bool>("debug_in", debug_out_file, false);
+  pnh.param<std::string>("debug_out_file_path", debug_out_file_path, "/tmp/odom_debug.csv");
+  pnh.param<bool>("debug_out", debug_in_file, false);
+
 
   float max_time_between_meas_fl;
   pnh.param<float>("max_time_between_meas", max_time_between_meas_fl, 0.5);
@@ -27,31 +31,14 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::R
   odo_pub = nh.advertise<nav_msgs::Odometry>(static_frame, 0);
 
   // debug file
-  if(debug_file)
+  if(debug_out_file)
   {
-     file_log.open( debug_file_path );
-     file_log << "timestamp,"
-              << "delta,"
-              << "state_x,"
-              << "state_y,"
-              << "state_theta,"
-              << "state_v,"
-              << "state_a,"
-              << "state_omega,"
-              << "meas_ax,"
-              << "meas_ay,"
-              << "meas_v,"
-              << "meas_omega,";
+    write_output_header(debug_out_file_path);
+  }
 
-     for(int i=0; i<6; i++)
-       for(int j=0; j<6; j++)
-         file_log << "state_cov_(" << i << "|" << j << "),";
-
-     for(int i=0; i<4; i++)
-       for(int j=0; j<4; j++)
-         file_log << "meas_cov_(" << i << "|" << j << "),";
-
-      file_log << std::endl;
+  if(debug_in_file)
+  {
+    write_input_header(debug_in_file_path);
   }
 
   // init subscribers
@@ -90,7 +77,7 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, ros::R
 // deinitilize
 ImuOdoOdometry::~ImuOdoOdometry()
 {
-  file_log.close();
+  file_out_log.close();
 }
 
 // reload process covariances
@@ -179,6 +166,12 @@ void ImuOdoOdometry::initFilterProcessCov()
 void ImuOdoOdometry::syncCallback(const drive_ros_msgs::VehicleEncoderConstPtr &msg_odo,
                                   const sensor_msgs::ImuConstPtr &msg_imu)
 {
+
+  // debug input message to file
+  if(debug_in_file){
+    write_input_msgs(msg_odo, msg_imu);
+  }
+
   mut.lock();
   odo_msg = *msg_odo;
   imu_msg = *msg_imu;
@@ -454,35 +447,9 @@ bool ImuOdoOdometry::publishCarState()
 
 
   // debug to file
-  if(debug_file)
+  if(debug_out_file)
   {
-     file_log << currentTimestamp         << ","
-              << currentDelta             << ","
-              << state.x()                << ","
-              << state.y()                << ","
-              << state.theta()            << ","
-              << state.v()                << ","
-              << state.a()                << ","
-              << state.omega()            << ","
-              << z.ax()                   << ","
-              << z.ay()                   << ","
-              << z.v()                    << ","
-              << z.omega()                << ",";
-
-
-
-     for(int i=0; i<6; i++)
-      for(int j=0; j<6; j++)
-       file_log << cov_ft(i, j) << ",";
-
-
-
-     for(int i=0; i<4; i++)
-      for(int j=0; j<4; j++)
-       file_log << cov_mm(i, j) << ",";
-
-
-    file_log << std::endl;
+    write_output_result(&odom);
   }
 
   return true;

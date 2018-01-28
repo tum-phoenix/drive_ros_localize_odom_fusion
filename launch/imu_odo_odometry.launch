@@ -47,9 +47,13 @@
     -->
     <arg name="use_sensor_time_for_pub" default="false" />
 
+    <!-- debug input to file -->
+    <arg name="debug_in" default="false" />
+    <arg name="debug_in_file_path" default="/tmp/in_debug.csv" />
+
     <!-- debug state to file -->
-    <arg name="debug_file" default="false" />
-    <arg name="debug_file_path" default="/tmp/odom_debug.csv" />
+    <arg name="debug_out" default="false" />
+    <arg name="debug_out_file_path" default="/tmp/out_debug.csv" />
 
     <!-- forward output to [screen|log] -->
     <arg name="output" default="screen"/>
@@ -73,8 +77,10 @@
         <param name="static_frame" type="str" value="$(arg static_frame)" />
         <param name="moving_frame" type="str" value="$(arg moving_frame)" />
         <param name="use_sensor_time_for_pub" type="bool" value="$(arg use_sensor_time_for_pub)" />
-        <param name="debug_file" type="bool" value ="$(arg debug_file)" />
-        <param name="debug_file_path" type="str" value ="$(arg debug_file_path)" />
+        <param name="debug_in" type="bool" value ="$(arg debug_in)" />
+        <param name="debug_in_file_path" type="str" value ="$(arg debug_in_file_path)" />
+        <param name="debug_out" type="bool" value ="$(arg debug_out)" />
+        <param name="debug_out_file_path" type="str" value ="$(arg debug_out_file_path)" />
         <rosparam command="load" file="$(arg vehicle_config)"/>
     </node>
 </launch>

@@ -59,6 +59,9 @@ public:
   typedef message_filters::sync_policies::ApproximateTime<drive_ros_msgs::VehicleEncoder,
                                                           sensor_msgs::Imu> SyncPolicy;
 
+  // inject messages directly (only for debug)
+  void set_imu_msg(const sensor_msgs::Imu &msg){mut.lock(); imu_msg = msg; mut.unlock();};
+  void set_odo_msg(const drive_ros_msgs::VehicleEncoder &msg){mut.lock(); odo_msg = msg; mut.unlock();};
 
 private:
 
@@ -88,6 +91,15 @@ private:
                            std_srvs::Trigger::Response &res);
   bool svr_reinit_state(std_srvs::Trigger::Request  &req,
                         std_srvs::Trigger::Response &res);
+
+
+  // debug file operations
+  void write_input_header(std::string filename);
+  void write_input_msgs(const drive_ros_msgs::VehicleEncoderConstPtr &msg_odo,
+                        const sensor_msgs::ImuConstPtr &msg_imu);
+
+  void write_output_header(std::string filename);
+  void write_output_result(const nav_msgs::Odometry* msg);
 
   // ROS subscriber + synchronizer
   message_filters::Subscriber<sensor_msgs::Imu> *imu_sub;
@@ -126,14 +138,17 @@ private:
 
   // parameter
   ros::Duration max_time_between_meas;
-  bool debug_file;
   bool ignore_acc_values;
   bool use_sensor_time_for_pub;
   std::string static_frame;
   std::string moving_frame;
 
   // debug to file
-  std::ofstream file_log;
+  bool debug_out_file;
+  std::ofstream file_out_log;
+
+  bool debug_in_file;
+  std::ofstream file_in_log;
 
 };
 
