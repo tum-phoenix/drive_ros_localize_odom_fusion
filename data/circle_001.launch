@@ -1,0 +1,11 @@
+<launch>
+    <include file="$(find drive_ros_imu_odo_odometry)/launch/imu_odo_odometry.launch" pass_all_args="true">
+        <!-- bag specific parameter -->
+        <arg name="odo_topic_name" value="/from_mav/odometer_delta" />
+        <arg name="odo_topic_rate" default="250"/>
+        <arg name="imu_topic_name" value="/from_mav/imu" />
+        <arg name="imu_topic_rate" default="250"/>
+        <arg name="read_from_bag" default="true" />
+        <arg name="bag_file_path" default="$(find drive_ros_imu_odo_odometry)/data/circle_001.bag" />
+    </include>
+</launch>
