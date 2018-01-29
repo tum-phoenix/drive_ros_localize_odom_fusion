@@ -2,10 +2,17 @@ import csv
 import argparse
 from hyperopt import fmin, tpe, hp
 from hyperopt.mongoexp import MongoTrials
+import hyperopt.pyll
+from hyperopt.pyll import scope
 
 # paths
 path_results =      "/data/KalmanTuningLogs/"
 
+
+# divide function
+@scope.define
+def divide(a):
+     return 1/a
 
 
 ## objective function
@@ -38,7 +45,7 @@ def objective(params):
     # normalize results by this values
     x_norm = 0.5 # meters
     y_norm = 0.5 # meters
-    theta_norm = 0.17 # radiant
+    theta_norm = 9999 # radiant
 
     x_var_norm = 1.0 # meters
     y_var_norm = 1.0 # meters
@@ -81,7 +88,7 @@ def objective(params):
                         "--logdir", path_results + str(trial),
                         "--bag", path_bag_file,
                         "--config", yaml_config,
-			"--launch", path_launch_file,
+                        "--launch", path_launch_file,
                         "--catkin_ws", path_catkin_ws ], shell=False)
 
     # evaluate return code of trial runner
@@ -124,12 +131,32 @@ def objective(params):
         'status': status,
         'eval_time': time.time(),
         'log_path': path_results + str(trial),
-        'x_end': x,
-        'y_end': y,
-        'theta_end': theta,
-        'x_var_end': x_var,
-        'y_var_end': y_var,
-        'theta_var_end': theta_var,
+        'pose': { 
+                 'x_end': x,
+                 'y_end': y,
+                 'theta_end': theta
+                },
+        'pose_cov': {
+                     'x_var_end': x_var,
+                     'y_var_end': y_var,
+                     'theta_var_end': theta_var
+                    },
+        'params': {
+                   'x': params['x'],
+                   'y': params['y'],
+                   'a': params['a'],
+                   'v': params['v'],
+                   'theta': params['theta'],
+                   'omega': params['omega']
+                  },
+        'norms': {
+                    'x': x_norm,
+                    'y': y_norm,
+                    'theta': theta_norm,
+                    'x_var': x_var_norm,
+                    'y_var': y_var_norm,
+                    'theta_var': theta_var_norm 
+                 }
     }
 
 
@@ -150,12 +177,13 @@ if __name__ == "__main__":
     # create search space
     print("Create search space")
     space = {
-        'x': hp.loguniform('x', 0, 1),
-        'y': hp.loguniform('y', 0, 1),
-        'a': hp.loguniform('a', 0, 1),
-        'v': hp.loguniform('v', 0, 1),
-        'theta': hp.loguniform('theta', 0, 1),
-        'omega': hp.loguniform('omega', 0, 1)
+        # hp.loguniform(label, low, high) -> value is constrained to: [exp(low), exp(high)]
+        'x': divide(hp.loguniform('x', 0, 20)),
+        'y': divide(hp.loguniform('y', 0, 20)),
+        'a': divide(hp.loguniform('a', 0, 20)),
+        'v': divide(hp.loguniform('v', 0, 20)),
+        'theta': divide(hp.loguniform('theta', 0, 20)),
+        'omega': divide(hp.loguniform('omega', 0, 20))
     }
 
     # some settings
