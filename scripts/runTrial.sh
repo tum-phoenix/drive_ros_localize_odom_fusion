@@ -56,6 +56,7 @@ do
                 shift # past value
                 ;;
                 *)    # unknown option
+		echo "Unknown option provided: $key"
                 help
                 ;;
         esac
@@ -64,31 +65,37 @@ done
 # check if all parameters are set
 if [ $TRIAL = "-1" ]
 then
+	echo "Trial argument not provided."
         help
 fi
 
 if [ "$LOGDIR" = "-1" ]
 then
+	echo "LogDir argument not provided."
         help
 fi
 
 if [ "$BAGFILE" = "-1" ]
 then
+	echo "BagFile argument not provided."
         help
 fi
 
 if [ "$VEHICLECONFIG" = "-1" ]
 then
+	echo "VehicleConfig argument not provided."
         help
 fi
 
 if [ "$LAUNCH" = "-1" ]
 then
+	echo "LaunchFile argument not provided."
         help
 fi
 
 if [ "$CATKIN_WS" = "-1" ]
 then
+	echo "CatkinWS argument not provided."
         help
 fi
 
@@ -147,7 +154,7 @@ timeout $(($BAG_DURATION+6))s nice -n -5 roscore -p $PORT &> "$LOGDIR"/out.log &
 sleep 2
 
 # start odometry
-roslaunch drive_ros_imu_odo_odometry "$LAUNCH" debug_out:=true debug_out_file_path:="$LOGDIR"/odom.csv vehicle_config:="$VEHICLECONFIG" &> "$LOGDIR"/out.log &
+roslaunch "$LAUNCH" debug_out:=true debug_out_file_path:="$LOGDIR"/odom.csv vehicle_config:="$VEHICLECONFIG" &> "$LOGDIR"/out.log
 
 exit 0
 

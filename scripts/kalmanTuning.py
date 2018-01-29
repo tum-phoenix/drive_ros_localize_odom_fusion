@@ -77,13 +77,12 @@ def objective(params):
 
     # start trial runner
     p = subprocess.run([path_trial_runner,
-                        "--trail", str(trial),
+                        "--trial", str(trial),
                         "--logdir", path_results + str(trial),
                         "--bag", path_bag_file,
                         "--config", yaml_config,
-                        "--catkin_ws", path_catkin_ws,
-                        "--launch", path_launch_file ],
-                        shell=False)
+			"--launch", path_launch_file,
+                        "--catkin_ws", path_catkin_ws ], shell=False)
 
     # evaluate return code of trial runner
     if 0 == p.returncode:
