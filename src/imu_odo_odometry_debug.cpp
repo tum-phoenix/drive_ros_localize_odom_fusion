@@ -9,7 +9,6 @@ void ImuOdoOdometry::write_output_header(std::string filename)
   file_out_log << "pose_posX,"
                << "pose_posY,"
                << "pose_posZ,"
-               << "pose_oriW,"
                << "pose_oriX,"
                << "pose_oriY,"
                << "pose_oriZ,";
@@ -35,13 +34,17 @@ void ImuOdoOdometry::write_output_result(const nav_msgs::Odometry *msg)
 {
   file_out_log << msg->header.stamp.toSec() << ",";
 
+  double roll, pitch, yaw;
+  tf::Quaternion q;
+  tf::quaternionMsgToTF(msg->pose.pose.orientation, q);
+  tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
+
   file_out_log << msg->pose.pose.position.x << ","
                << msg->pose.pose.position.y << ","
                << msg->pose.pose.position.z << ","
-               << msg->pose.pose.orientation.w << ","
-               << msg->pose.pose.orientation.x << ","
-               << msg->pose.pose.orientation.y << ","
-               << msg->pose.pose.orientation.z << ",";
+               << roll  << ","
+               << pitch << ","
+               << yaw   << ",";
 
   for(int i=0; i<36; i++)
     file_out_log << msg->pose.covariance.at(i) << ",";

@@ -50,7 +50,7 @@
 
     <!-- read messages from bag file instead of incoming messages -->
     <arg name="read_from_bag" default="false" />
-    <arg name="bag_file_path" default="$(find drive_ros_imu_odo_odometry)/data/circle.bag" />
+    <arg name="bag_file_path" default="$(find drive_ros_imu_odo_odometry)/data/circle_001.bag" />
 
     <!-- forward output to [screen|log] -->
     <arg name="output" default="screen"/>

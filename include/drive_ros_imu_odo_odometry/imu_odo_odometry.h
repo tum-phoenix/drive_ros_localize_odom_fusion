@@ -12,6 +12,7 @@
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <boost/foreach.hpp>
+#include <tf/tf.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <message_filters/subscriber.h>
