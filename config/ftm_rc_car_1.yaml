@@ -1,18 +1,4 @@
-kalman_cov:
-
-    # INITIAL COVARIANCES
-    filter_init_var_x:     0.0
-    filter_init_var_y:     0.0
-    filter_init_var_a:     0.0
-    filter_init_var_v:     0.0
-    filter_init_var_theta: 0.0
-    filter_init_var_omega: 0.0
-
-
-    # PROCESS COVARIANCES
-    sys_var_x: 0.000001
-    sys_var_y: 0.000001
-    sys_var_a: 0.0001
-    sys_var_v: 0.0001
-    sys_var_theta: 0.000001
-    sys_var_omega: 0.01
+kalman_cov: {filter_init_var_a: 0.0, filter_init_var_omega: 0.0, filter_init_var_theta: 0.0,
+  filter_init_var_v: 0.0, filter_init_var_x: 0.0, filter_init_var_y: 0.0, sys_var_a: 3.809701985322761e-08,
+  sys_var_omega: 4.1772916345245605e-06, sys_var_theta: 1.160157104912418e-08, sys_var_v: 0.2903481465997816,
+  sys_var_x: 5.3927484707487716e-08, sys_var_y: 8.324539801716098e-09}
