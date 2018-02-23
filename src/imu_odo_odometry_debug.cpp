@@ -1,6 +1,7 @@
 #include "drive_ros_imu_odo_odometry/imu_odo_odometry.h"
 
-void ImuOdoOdometry::write_output_header(std::string filename)
+// write header file of output log file
+void ImuOdoOdometry::writeOutputHeader(std::string filename)
 {
   file_out_log.open( filename );
 
@@ -29,8 +30,8 @@ void ImuOdoOdometry::write_output_header(std::string filename)
    file_out_log << std::endl;
 }
 
-
-void ImuOdoOdometry::write_output_result(const nav_msgs::Odometry *msg)
+// write the odometry message to output log file
+void ImuOdoOdometry::writeOutputResult(const nav_msgs::Odometry *msg)
 {
   file_out_log << msg->header.stamp.toSec() << ",";
 
@@ -62,7 +63,7 @@ void ImuOdoOdometry::write_output_result(const nav_msgs::Odometry *msg)
   file_out_log << std::endl;
 }
 
-
+// read data from bag and feed it into fake subscriber
 bool ImuOdoOdometry::processBag(std::string bag_file_path)
 {
   // open bag
@@ -98,7 +99,6 @@ bool ImuOdoOdometry::processBag(std::string bag_file_path)
         sync->add<1>(imu);
       }
     }
-
   }
 
   // close bag

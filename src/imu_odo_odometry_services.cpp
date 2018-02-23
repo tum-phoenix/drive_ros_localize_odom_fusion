@@ -1,8 +1,8 @@
 #include "drive_ros_imu_odo_odometry/imu_odo_odometry.h"
 
 // reload process covariances
-bool ImuOdoOdometry::svr_reload_proc_cov(std_srvs::Trigger::Request  &req,
-                                         std_srvs::Trigger::Response &res)
+bool ImuOdoOdometry::svrReloadProcCov(std_srvs::Trigger::Request  &req,
+                                      std_srvs::Trigger::Response &res)
 {
   initFilterProcessCov();
 
@@ -11,8 +11,8 @@ bool ImuOdoOdometry::svr_reload_proc_cov(std_srvs::Trigger::Request  &req,
 }
 
 // reinit kalman state
-bool ImuOdoOdometry::svr_reinit_state(std_srvs::Trigger::Request  &req,
-                                      std_srvs::Trigger::Response &res)
+bool ImuOdoOdometry::svrReinitState(std_srvs::Trigger::Request  &req,
+                                    std_srvs::Trigger::Response &res)
 {
   initFilterState();
 

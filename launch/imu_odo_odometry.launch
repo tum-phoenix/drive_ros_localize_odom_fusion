@@ -20,11 +20,15 @@
          maximum time allowed between two measurements (imu+odo).
          If this time difference between measurments exceeds this threshold [sec]
          -> reset the filter covariances
+         -> typically occurs when running a bag in a loop -> big time jump
     -->
     <arg name="max_time_between_meas" default="0.1"/>
 
 
-    <!-- ignore acceleration (this can be usefull if acceleration from IMU is to noisy) -->
+    <!--
+        ignore acceleration values.
+        This can be usefull if acceleration from IMU is to noisy
+    -->
     <arg name="ignore_acc_values" default="false" />
 
     <!-- tf parent frame of published tf -->
@@ -40,7 +44,7 @@
     <!--
         use sensor time to publish tf and odometry
         advantage: published time is similar to sensor data time
-        disadvantage: can cause problems with time jumps, when replaying bags
+        disadvantage: can cause problems with time jumps, when replaying bags in loops
     -->
     <arg name="use_sensor_time_for_pub" default="false" />
 

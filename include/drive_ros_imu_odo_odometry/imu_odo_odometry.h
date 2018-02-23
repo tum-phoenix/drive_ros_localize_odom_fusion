@@ -40,15 +40,16 @@
 class ImuOdoOdometry
 {
 public:
-  //! Constructor.
+  // constructor
   ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, bool use_bag);
 
-  //! Destructor.
+  // destructor
   ~ImuOdoOdometry();
 
-
+  // directly read from bag file
   bool processBag(std::string bag_file_path);
 
+  // some typedefs
   typedef float T;
 
   typedef drive_ros_msgs::VehicleEncoder VeEnc;
@@ -83,22 +84,19 @@ private:
   // publish data
   bool publishCarState();
 
-
-  // Callback function for subscriber
+  // callback function for subscriber
   void syncCallback(const drive_ros_msgs::VehicleEncoderConstPtr &msg_odo,
                     const sensor_msgs::ImuConstPtr &msg_imu);
 
-
   // services
-  bool svr_reload_proc_cov(std_srvs::Trigger::Request  &req,
+  bool svrReloadProcCov(std_srvs::Trigger::Request  &req,
                            std_srvs::Trigger::Response &res);
-  bool svr_reinit_state(std_srvs::Trigger::Request  &req,
+  bool svrReinitState(std_srvs::Trigger::Request  &req,
                         std_srvs::Trigger::Response &res);
 
-
   // debug file operations
-  void write_output_header(std::string filename);
-  void write_output_result(const nav_msgs::Odometry* msg);
+  void writeOutputHeader(std::string filename);
+  void writeOutputResult(const nav_msgs::Odometry* msg);
 
   // ROS subscriber + synchronizer
   message_filters::Subscriber<sensor_msgs::Imu> *imu_sub;
@@ -124,10 +122,10 @@ private:
   Filter filter;
 
   // ROS times and durations
-  ros::Time lastTimestamp;
-  ros::Time currentTimestamp;
-  ros::Duration currentDelta;
-  ros::Duration lastDelta;
+  ros::Time last_timestamp;
+  ros::Time current_timestamp;
+  ros::Duration current_delta;
+  ros::Duration last_delta;
 
   // parameter
   ros::Duration max_time_between_meas;
