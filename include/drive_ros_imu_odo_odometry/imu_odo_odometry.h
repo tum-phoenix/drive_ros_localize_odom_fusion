@@ -62,7 +62,7 @@ public:
   typedef CTRA::SystemModel<T> SystemModel;
   typedef Kalman::ExtendedKalmanFilter<State> Filter;
 
-  typedef message_filters::sync_policies::ApproximateTime<drive_ros_msgs::VehicleEncoder,
+  typedef message_filters::sync_policies::ApproximateTime<nav_msgs::Odometry,
                                                           sensor_msgs::Imu> SyncPolicy;
 private:
 
@@ -71,11 +71,11 @@ private:
   void initFilterProcessCov();
 
   // computes the actual odometry
-  void computeOdometry(const drive_ros_msgs::VehicleEncoderConstPtr &msg_odo,
+  void computeOdometry(const nav_msgs::OdometryConstPtr &msg_odo,
                        const sensor_msgs::ImuConstPtr &msg_imu);
 
   // collect data and prepare computing
-  bool computeMeasurement(const drive_ros_msgs::VehicleEncoderConstPtr &odo_msg,
+  bool computeMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
                           const sensor_msgs::ImuConstPtr &imu_msg);
 
   // compute one kalman step
@@ -85,7 +85,7 @@ private:
   bool publishCarState();
 
   // callback function for subscriber
-  void syncCallback(const drive_ros_msgs::VehicleEncoderConstPtr &msg_odo,
+  void syncCallback(const nav_msgs::OdometryConstPtr &msg_odo,
                     const sensor_msgs::ImuConstPtr &msg_imu);
 
   // services
@@ -100,7 +100,7 @@ private:
 
   // ROS subscriber + synchronizer
   message_filters::Subscriber<sensor_msgs::Imu> *imu_sub;
-  message_filters::Subscriber<drive_ros_msgs::VehicleEncoder> *odo_sub;
+  message_filters::Subscriber<nav_msgs::Odometry> *odo_sub;
   message_filters::Synchronizer<SyncPolicy> *sync;
   SyncPolicy* policy;
 

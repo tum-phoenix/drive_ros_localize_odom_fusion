@@ -1,6 +1,6 @@
 <launch>
     <!-- odometer topic -->
-    <arg name="odo_topic_name" default="/from_mav/odometer_delta"/>
+    <arg name="odo_topic_name" default="/from_mav/odom"/>
     <arg name="odo_topic_rate" default="300"/>
 
     <!-- IMU topic -->

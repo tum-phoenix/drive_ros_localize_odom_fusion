@@ -85,7 +85,7 @@ bool ImuOdoOdometry::processBag(std::string bag_file_path)
     // odometer msg
     if(m.getTopic() == odo_topic_name || ("/" + m.getTopic() == odo_topic_name))
     {
-      drive_ros_msgs::VehicleEncoderConstPtr odo = m.instantiate<drive_ros_msgs::VehicleEncoder>();
+      nav_msgs::OdometryConstPtr odo = m.instantiate<nav_msgs::Odometry>();
       if (odo != NULL){
         sync->add<0>(odo);
       }

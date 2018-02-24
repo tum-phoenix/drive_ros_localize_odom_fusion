@@ -39,14 +39,14 @@ ImuOdoOdometry::ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, bool u
   if(use_bag){
 
     // fake subscriber
-    odo_sub = new message_filters::Subscriber<drive_ros_msgs::VehicleEncoder>();
+    odo_sub = new message_filters::Subscriber<nav_msgs::Odometry>();
     imu_sub = new message_filters::Subscriber<sensor_msgs::Imu>();
 
 
   }else{
 
     // real subscribers
-    odo_sub = new message_filters::Subscriber<drive_ros_msgs::VehicleEncoder>(pnh, odo_topic_name, queue_size);
+    odo_sub = new message_filters::Subscriber<nav_msgs::Odometry>(pnh, odo_topic_name, queue_size);
     imu_sub = new message_filters::Subscriber<sensor_msgs::Imu>(pnh, imu_topic_name, queue_size);
 
   }
@@ -152,7 +152,7 @@ void ImuOdoOdometry::initFilterProcessCov()
 
 
 // callback if both odo and imu messages with same timestamp have arrived
-void ImuOdoOdometry::syncCallback(const drive_ros_msgs::VehicleEncoderConstPtr &msg_odo,
+void ImuOdoOdometry::syncCallback(const nav_msgs::OdometryConstPtr &msg_odo,
                                   const sensor_msgs::ImuConstPtr &msg_imu)
 {
 
@@ -165,7 +165,7 @@ void ImuOdoOdometry::syncCallback(const drive_ros_msgs::VehicleEncoderConstPtr &
 
 
 // calculates the odometry
-void ImuOdoOdometry::computeOdometry(const drive_ros_msgs::VehicleEncoderConstPtr &msg_odo,
+void ImuOdoOdometry::computeOdometry(const nav_msgs::OdometryConstPtr &msg_odo,
                                      const sensor_msgs::ImuConstPtr &msg_imu)
 {
 
@@ -205,7 +205,7 @@ void ImuOdoOdometry::computeOdometry(const drive_ros_msgs::VehicleEncoderConstPt
 
 }
 
-bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoderConstPtr &odo_msg,
+bool ImuOdoOdometry::computeMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
                                         const sensor_msgs::ImuConstPtr &imu_msg)
 {
 
@@ -238,34 +238,12 @@ bool ImuOdoOdometry::computeMeasurement(const drive_ros_msgs::VehicleEncoderCons
   cov(Measurement::AX,    Measurement::AX)    = imu_msg->linear_acceleration_covariance[CovElem::lin::linX_linX];
   cov(Measurement::AY,    Measurement::AY)    = imu_msg->linear_acceleration_covariance[CovElem::lin::linY_linY];
   cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg->angular_velocity_covariance[CovElem::ang::angZ_angZ];
-  cov(Measurement::V,     Measurement::V)     = odo_msg->encoder[VeEnc::MOTOR].vel_var;
+  cov(Measurement::V,     Measurement::V)     = odo_msg->twist.covariance[CovElem::lin_ang::linX_linX];
   mm.setCovariance(cov);
 
 
-  // calculate velocity
-  double vel = 0;
-  if(0 == odo_msg->encoder.size())
-  {
-
-    ROS_ERROR("We need at least one encoder, to work properly!");
-
-    // reset covariances
-    initFilterProcessCov();
-    return false;
-
-  }else{
-
-    // calculate mean
-    for(int i=0; i<odo_msg->encoder.size(); i++){
-      vel += odo_msg->encoder[i].vel;
-    }
-    vel = vel/(float)odo_msg->encoder.size();
-
-  }
-
-
   // set measurements vector z
-  z.v()     = vel;
+  z.v()     = odo_msg->twist.twist.linear.x;
   z.omega() = imu_msg->angular_velocity.z;
 
   if(ignore_acc_values){
