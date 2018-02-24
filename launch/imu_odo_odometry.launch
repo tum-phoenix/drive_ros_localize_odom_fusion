@@ -1,11 +1,11 @@
 <launch>
     <!-- odometer topic -->
     <arg name="odo_topic_name" default="/from_mav/odom"/>
-    <arg name="odo_topic_rate" default="300"/>
+    <arg name="odo_topic_rate" default="250"/>
 
     <!-- IMU topic -->
-    <arg name="imu_topic_name" default="/from_mav/imu/data_raw"/>
-    <arg name="imu_topic_rate" default="300"/>
+    <arg name="imu_topic_name" default="/from_mav/imu/data"/>
+    <arg name="imu_topic_rate" default="250"/>
 
     <!-- size of subscriber and sync policy queues -->
     <arg name="queue_size" default="10"/>
@@ -54,7 +54,7 @@
 
     <!-- read messages from bag file instead of incoming messages -->
     <arg name="read_from_bag" default="false" />
-    <arg name="bag_file_path" default="$(find drive_ros_imu_odo_odometry)/data/circle_001.bag" />
+    <arg name="bag_file_path" default="$(find drive_ros_imu_odo_odometry)/test/circle_001.bag" />
 
     <!-- forward output to [screen|log] -->
     <arg name="output" default="screen"/>
