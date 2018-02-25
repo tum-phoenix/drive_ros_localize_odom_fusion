@@ -49,7 +49,7 @@
     <arg name="use_sensor_time_for_pub" default="false" />
 
     <!-- debug odometry output to file -->
-    <arg name="debug_out" default="true" />
+    <arg name="debug_out" default="false" />
     <arg name="debug_out_file_path" default="/tmp/out_debug_2.csv" />
 
     <!-- read messages from bag file instead of incoming messages -->
