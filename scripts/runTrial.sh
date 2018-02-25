@@ -9,6 +9,7 @@ function help {
  echo "  --config <vehicle_config>"
  echo "  --launch <launch_file>"
  echo "  --catkin_ws <catkin_ws_dir>"
+ echo "  --timeout <timeout_in_sec>"
  echo ""
  exit 1
 }
@@ -20,6 +21,7 @@ BAGFILE="-1"
 VEHICLECONFIG="-1"
 CATKIN_WS="-1"
 LAUNCH="-1"
+TIMEOUT=-1
 
 while [[ $# -gt 0 ]]
 do
@@ -47,6 +49,11 @@ do
                 ;;
                 --launch)
                 LAUNCH="$2"
+                shift # past argument
+                shift # past value
+                ;;
+                --timeout)
+                TIMEOUT="$2"
                 shift # past argument
                 shift # past value
                 ;;
@@ -90,6 +97,12 @@ fi
 if [ "$LAUNCH" = "-1" ]
 then
 	echo "LaunchFile argument not provided."
+        help
+fi
+
+if [ "$TIMEOUT" = "-1" ]
+then
+	echo "Timeout argument not provided."
         help
 fi
 
@@ -137,9 +150,6 @@ fi
 # avoid port number smaller than 11320 and higher than 15320
 PORT=$((11320 + $TRIAL%(15320-11320)))
 
-# get bag duration
-BAG_DURATION=$(rosbag info "$BAGFILE" | grep -oP 'duration[\s\:s\d]*\(\K(\d*)')
-
 # try to minimize possibility of port collisions
 while [ $(nc -z localhost $PORT && echo 1) ]
 do
@@ -149,12 +159,8 @@ done
 # set indivdual port for each trial (to run multiple trials in parallel)
 export ROS_MASTER_URI=http://localhost:$PORT
 
-# start roscore
-timeout $(($BAG_DURATION+6))s nice -n -5 roscore -p $PORT &> "$LOGDIR"/out.log &
-sleep 2
-
 # start odometry
-roslaunch "$LAUNCH" debug_out:=true debug_out_file_path:="$LOGDIR"/odom.csv vehicle_config:="$VEHICLECONFIG" &> "$LOGDIR"/out.log
+timeout $TIMEOUT roslaunch "$LAUNCH" debug_out:=true debug_out_file_path:="$LOGDIR"/odom.csv vehicle_config:="$VEHICLECONFIG" &> "$LOGDIR"/out.log
 
 exit 0
 

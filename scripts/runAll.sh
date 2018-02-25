@@ -4,7 +4,7 @@
 DBHOST="localhost"
 DBPORT="1234"
 DBDIR="/home/fabian/mongodb/"
-EVALS_MAX="3000"
+EVALS_MAX="10000"
 WORKER_MAX=15
 
 
@@ -30,7 +30,7 @@ while [ $WORKER -lt $WORKER_MAX ]
 do
   echo "  Start worker $WORKER ..."
   echo "##### START NEW EXPERIMENT $EXPERIMENT #####" >> /tmp/kalmanTuningWorker$WORKER.log
-  hyperopt-mongo-worker --mongo=$DBHOST:$DBPORT/$EXPERIMENT --poll-interval=1 --reserve-timeout=5 --max-consecutive-failures=4 &>> /tmp/kalmanTuningWorker$WORKER.log &
+  hyperopt-mongo-worker --mongo=$DBHOST:$DBPORT/$EXPERIMENT --poll-interval=1 --reserve-timeout=10 --max-consecutive-failures=5 &>> /tmp/kalmanTuningWorker$WORKER.log &
   WORKER=$(($WORKER+1))
   sleep 2
 done
