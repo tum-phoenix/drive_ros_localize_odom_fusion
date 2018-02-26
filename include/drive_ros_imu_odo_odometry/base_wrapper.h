@@ -1,5 +1,5 @@
-#ifndef IMUODOODOMETRY_H
-#define IMUODOODOMETRY_H
+#ifndef BASE_MODEL_H
+#define BASE_MODEL_H
 
 // system
 #include <cmath>
@@ -29,70 +29,57 @@
 // ros services
 #include <std_srvs/Trigger.h>
 
-// kalman
-#include <kalman/ExtendedKalmanFilter.hpp>
-#include "measurement_model.h"
-#include "system_model.h"
+// covariances
 #include "cov_elements.h"
 
 
-
-class ImuOdoOdometry
+class BaseWrapper
 {
 public:
-  // constructor
-  ImuOdoOdometry(ros::NodeHandle& nh, ros::NodeHandle& pnh, bool use_bag);
-
-  // destructor
-  ~ImuOdoOdometry();
 
   // directly read from bag file
   bool processBag(std::string bag_file_path);
 
+  // init publisher, subscriber and some parameters
+  bool initROS(bool use_bag);
+
   // some typedefs
-  typedef float T;
-
   typedef drive_ros_msgs::VehicleEncoder VeEnc;
-
-  typedef CTRA::State<T> State;
-  typedef CTRA::Control<T> Control;
-  typedef CTRA::Measurement<T> Measurement;
-
-  typedef CTRA::MeasurementModel<T> MeasurementModel;
-  typedef CTRA::SystemModel<T> SystemModel;
-  typedef Kalman::ExtendedKalmanFilter<State> Filter;
-
   typedef message_filters::sync_policies::ApproximateTime<nav_msgs::Odometry,
                                                           sensor_msgs::Imu> SyncPolicy;
-private:
+protected:
 
   // initialize Kalman Filter
-  void initFilterState();
-  void initFilterProcessCov();
-
-  // computes the actual odometry
-  void computeOdometry(const nav_msgs::OdometryConstPtr &msg_odo,
-                       const sensor_msgs::ImuConstPtr &msg_imu);
+  virtual bool initFilterState() = 0;
+  virtual bool initFilterProcessCov() = 0;
 
   // collect data and prepare computing
-  bool computeMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
-                          const sensor_msgs::ImuConstPtr &imu_msg);
+  virtual bool insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
+                                 const sensor_msgs::ImuConstPtr &imu_msg) = 0;
 
   // compute one kalman step
-  bool computeFilterStep();
+  virtual bool computeFilterStep(const float) = 0;
 
   // publish data
-  bool publishCarState();
+  virtual bool getOutput(geometry_msgs::TransformStamped& tf_msg,
+                         nav_msgs::Odometry& odom_msg) = 0;
 
+
+  // ros node handle
+  ros::NodeHandle nh;
+  ros::NodeHandle pnh;
+
+
+ private:
   // callback function for subscriber
   void syncCallback(const nav_msgs::OdometryConstPtr &msg_odo,
                     const sensor_msgs::ImuConstPtr &msg_imu);
 
   // services
   bool svrReloadProcCov(std_srvs::Trigger::Request  &req,
-                           std_srvs::Trigger::Response &res);
-  bool svrReinitState(std_srvs::Trigger::Request  &req,
                         std_srvs::Trigger::Response &res);
+  bool svrReinitState(std_srvs::Trigger::Request  &req,
+                      std_srvs::Trigger::Response &res);
 
   // debug file operations
   void writeOutputHeader(std::string filename);
@@ -107,29 +94,17 @@ private:
   // ROS publisher or broadcaster
   tf2_ros::TransformBroadcaster br;
   ros::Publisher odo_pub;
-  ros::NodeHandle nh;
-  ros::NodeHandle pnh;
 
   // services
   ros::ServiceServer reload_proc_cov;
   ros::ServiceServer reinit_state;
 
-  // kalman filter stuff
-  Control u;
-  Measurement z;
-  SystemModel sys;
-  MeasurementModel mm;
-  Filter filter;
-
   // ROS times and durations
   ros::Time last_timestamp;
-  ros::Time current_timestamp;
-  ros::Duration current_delta;
   ros::Duration last_delta;
 
   // parameter
   ros::Duration max_time_between_meas;
-  bool ignore_acc_values;
   bool use_sensor_time_for_pub;
   std::string static_frame;
   std::string moving_frame;
@@ -139,9 +114,6 @@ private:
   // debug to file
   bool debug_out_file;
   std::ofstream file_out_log;
-
-  // bag file
-  bool use_bag;
 
 };
 

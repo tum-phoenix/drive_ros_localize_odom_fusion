@@ -132,10 +132,9 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
- add_executable(${PROJECT_NAME}_node src/imu_odo_odometry.cpp
-                                     src/imu_odo_odometry_node.cpp
-                                     src/imu_odo_odometry_debug.cpp
-                                     src/imu_odo_odometry_services.cpp
+ add_executable(${PROJECT_NAME}_node src/imu_odo_odometry_node.cpp
+                                     src/base_wrapper.cpp
+                                     src/CTRA_wrapper.cpp
                                      )
 
 ## Rename C++ executable without prefix

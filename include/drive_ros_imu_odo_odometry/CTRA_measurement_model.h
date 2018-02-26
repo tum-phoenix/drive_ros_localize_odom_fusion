@@ -2,7 +2,7 @@
 #define CAR_TRACKER_FILTER_MEASUREMENT_MODEL_H
 
 #include <kalman/LinearizedMeasurementModel.hpp>
-#include "system_model.h"
+#include "CTRA_system_model.h"
 
 namespace CTRA {
 

@@ -24,12 +24,8 @@
     -->
     <arg name="max_time_between_meas" default="0.1"/>
 
-
-    <!--
-        ignore acceleration values.
-        This can be usefull if acceleration from IMU is to noisy
-    -->
-    <arg name="ignore_acc_values" default="false" />
+    <!-- vehicle model being used -->
+    <arg name="vehicle_model" default="CTRA"/>
 
     <!-- tf parent frame of published tf -->
     <arg name="static_frame" default="odometry"/>
@@ -73,7 +69,7 @@
         <param name="age_penalty" type="double" value="$(arg age_penalty)" />
         <param name="max_time_between_meas" type="double" value="$(arg max_time_between_meas)" />
         <param name="max_time_between_imu_odo" type="double" value="$(arg max_time_between_imu_odo)" />
-        <param name="ignore_acc_values" type="bool" value="$(arg ignore_acc_values)" />
+        <param name="vehicle_model" type="str" value ="$(arg vehicle_model)" />
         <param name="static_frame" type="str" value="$(arg static_frame)" />
         <param name="moving_frame" type="str" value="$(arg moving_frame)" />
         <param name="use_sensor_time_for_pub" type="bool" value="$(arg use_sensor_time_for_pub)" />
