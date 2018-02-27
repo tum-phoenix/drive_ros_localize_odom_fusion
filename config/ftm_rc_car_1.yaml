@@ -1,4 +1,0 @@
-kalman_cov: {filter_init_var_a: 0.0, filter_init_var_omega: 0.0, filter_init_var_theta: 0.0,
-  filter_init_var_v: 0.0, filter_init_var_x: 0.0, filter_init_var_y: 0.0, sys_var_a: 8.567783839852888e-05,
-  sys_var_omega: 8.094225290819645e-06, sys_var_theta: 3.048453694511547e-09, sys_var_v: 2.0649599347351485e-05,
-  sys_var_x: 6.107858343867233e-09, sys_var_y: 4.6982234738510754e-08}

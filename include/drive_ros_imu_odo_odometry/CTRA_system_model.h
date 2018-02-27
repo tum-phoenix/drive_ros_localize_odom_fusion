@@ -1,5 +1,5 @@
-#ifndef CAR_TRACKER_FILTER_SYSTEM_MODEL_H
-#define CAR_TRACKER_FILTER_SYSTEM_MODEL_H
+#ifndef CTRA_SYSTEM_MODEL_H
+#define CTRA_SYSTEM_MODEL_H
 
 #include <kalman/LinearizedSystemModel.hpp>
 

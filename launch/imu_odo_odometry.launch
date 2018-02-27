@@ -1,4 +1,7 @@
 <launch>
+    <!-- vehicle name e.g. cc2017_car -->
+    <arg name="vehicle" value="cc2017_car"/>
+
     <!-- odometer topic -->
     <arg name="odo_topic_name" default="/from_mav/odom"/>
     <arg name="odo_topic_rate" default="250"/>
@@ -6,6 +9,12 @@
     <!-- IMU topic -->
     <arg name="imu_topic_name" default="/from_mav/imu/data"/>
     <arg name="imu_topic_rate" default="250"/>
+
+    <!-- tf parent frame of published tf -->
+    <arg name="static_frame" default="odometry"/>
+
+    <!-- tf child frame of published tf -->
+    <arg name="moving_frame" default="rear_axis_middle_ground"/>
 
     <!-- size of subscriber and sync policy queues -->
     <arg name="queue_size" default="10"/>
@@ -24,17 +33,18 @@
     -->
     <arg name="max_time_between_meas" default="0.1"/>
 
-    <!-- vehicle model being used -->
-    <arg name="vehicle_model" default="CTRA"/>
+    <!--
+        vehicle model being used. Possible vehicle models available:
+         * CTRA (Constant Turn Rate and Acceleration)
+         * CTRV (Constant Turn Rate and Velocity)
 
-    <!-- tf parent frame of published tf -->
-    <arg name="static_frame" default="odometry"/>
+        All model specific parameters should be defined in the respective vehicle config file (see below).
+    -->
+    <arg name="vehicle_model" default="CTRV"/>
 
-    <!-- tf child frame of published tf -->
-    <arg name="moving_frame" default="rear_axis_middle_ground"/>
 
-    <!-- vehicle configuration file -->
-    <arg name="vehicle_config" default="$(find drive_ros_imu_odo_odometry)/config/phoenix_cc2017.yaml" />
+    <!-- vehicle configuration file it should be named: <vehicle_model>_<vehicle>.yaml -->
+    <arg name="vehicle_config" default="$(find drive_ros_imu_odo_odometry)/config/$(arg vehicle_model)_$(arg vehicle).yaml" />
 
 
     <!--

@@ -135,6 +135,7 @@ include_directories(
  add_executable(${PROJECT_NAME}_node src/imu_odo_odometry_node.cpp
                                      src/base_wrapper.cpp
                                      src/CTRA_wrapper.cpp
+                                     src/CTRV_wrapper.cpp
                                      )
 
 ## Rename C++ executable without prefix

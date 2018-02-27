@@ -1,27 +1,27 @@
-#ifndef CTRA_WRAPPER_H
-#define CTRA_WRAPPER_H
+#ifndef CTRV_WRAPPER_H
+#define CTRV_WRAPPER_H
 
 #include "kalman/ExtendedKalmanFilter.hpp"
 #include "base_wrapper.h"
-#include "CTRA_measurement_model.h"
-#include "CTRA_system_model.h"
+#include "CTRV_measurement_model.h"
+#include "CTRV_system_model.h"
 
-class CTRAWrapper : public BaseWrapper
+class CTRVWrapper : public BaseWrapper
 {
 public:
   typedef float T;
 
-  typedef CTRA::State<T> State;
-  typedef CTRA::Control<T> Control;
-  typedef CTRA::Measurement<T> Measurement;
+  typedef CTRV::State<T> State;
+  typedef CTRV::Control<T> Control;
+  typedef CTRV::Measurement<T> Measurement;
 
-  typedef CTRA::MeasurementModel<T> MeasurementModel;
-  typedef CTRA::SystemModel<T> SystemModel;
+  typedef CTRV::MeasurementModel<T> MeasurementModel;
+  typedef CTRV::SystemModel<T> SystemModel;
   typedef Kalman::ExtendedKalmanFilter<State> Filter;
 
 
   // constructor
-  CTRAWrapper(ros::NodeHandle& n, ros::NodeHandle& p);
+  CTRVWrapper(ros::NodeHandle& n, ros::NodeHandle& p);
 
 
 private:

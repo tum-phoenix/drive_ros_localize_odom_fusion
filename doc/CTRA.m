@@ -24,3 +24,5 @@ Fs = simplify(F);
 % Compute Limits for omega -> 0
 fLimit = limit(f, omega, 0);
 FLimit = limit(F, omega, 0);
+
+% code is manually transfered to C++
