@@ -1,11 +1,12 @@
 <launch>
     <include file="$(find drive_ros_imu_odo_odometry)/launch/imu_odo_odometry.launch" pass_all_args="true">
         <!-- bag specific parameter -->
-        <arg name="odo_topic_name" value="/from_mav/odom" />
+        <arg name="odo_topic_name" default="/from_mav/odom" />
         <arg name="odo_topic_rate" default="250"/>
-        <arg name="imu_topic_name" value="/from_mav/imu/data" />
+        <arg name="imu_topic_name" default="/from_mav/imu/data" />
         <arg name="imu_topic_rate" default="250"/>
         <arg name="read_from_bag" default="true" />
         <arg name="bag_file_path" default="$(find drive_ros_imu_odo_odometry)/test/circle_001.bag" />
+        <arg name="vehicle" default="cc2017_car"/>
     </include>
 </launch>

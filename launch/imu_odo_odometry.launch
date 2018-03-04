@@ -1,6 +1,6 @@
 <launch>
     <!-- vehicle name e.g. cc2017_car -->
-    <arg name="vehicle" value="cc2017_car"/>
+    <arg name="vehicle" default="cc2017_car"/>
 
     <!-- odometer topic -->
     <arg name="odo_topic_name" default="/from_mav/odom"/>

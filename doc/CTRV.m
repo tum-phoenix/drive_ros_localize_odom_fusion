@@ -6,8 +6,6 @@
 % Also generates code which can be used directly in Maltab 
 % (make sure that the variable order match).
 
-ver = 1.0;
-
 syms x y theta v omega t
 
 % System model matrix
@@ -29,7 +27,7 @@ Fs = simplify(F);
 fLimit = limit(f, omega, 0);
 FLimit = limit(F, omega, 0);
 
-% write to file to enable optimization
+%% write to file (enables optimization)
 comment = "Matlab generated code (check the docs) for symbolic expression: ";
 ccode(F,'File','F.temp','Comments', comment + "F");
 ccode(f,'File','f.temp','Comments', comment + "f");
