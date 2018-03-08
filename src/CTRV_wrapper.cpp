@@ -96,7 +96,9 @@ bool CTRVWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
 }
 
 
-bool CTRVWrapper::computeFilterStep(const float delta)
+bool CTRVWrapper::computeFilterStep(const float delta,
+                                    const nav_msgs::OdometryConstPtr &odo_msg,
+                                    const sensor_msgs::ImuConstPtr &imu_msg)
 {
 
   // time difference

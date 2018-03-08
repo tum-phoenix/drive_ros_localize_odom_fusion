@@ -58,7 +58,9 @@ protected:
                                  const sensor_msgs::ImuConstPtr &imu_msg) = 0;
 
   // compute one kalman step
-  virtual bool computeFilterStep(const float) = 0;
+  virtual bool computeFilterStep(const float,
+                                 const nav_msgs::OdometryConstPtr &odo_msg,
+                                 const sensor_msgs::ImuConstPtr &imu_msg) = 0;
 
   // publish data
   virtual bool getOutput(geometry_msgs::TransformStamped& tf_msg,

@@ -73,12 +73,10 @@ bool CTRAWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
   cov(Measurement::AX,    Measurement::AX)    = imu_msg->linear_acceleration_covariance[CovElem::lin::linX_linX];
   cov(Measurement::AY,    Measurement::AY)    = imu_msg->linear_acceleration_covariance[CovElem::lin::linY_linY];
   cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg->angular_velocity_covariance[CovElem::ang::angZ_angZ];
-  cov(Measurement::V,     Measurement::V)     = odo_msg->twist.covariance[CovElem::lin_ang::linX_linX];
   mm.setCovariance(cov);
 
 
   // set measurements vector z
-  z.v()     = odo_msg->twist.twist.linear.x;
   z.omega() = imu_msg->angular_velocity.z;
   z.ax()    = imu_msg->linear_acceleration.x;
   z.ay()    = imu_msg->linear_acceleration.y;
@@ -88,9 +86,7 @@ bool CTRAWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
   // check if there is something wrong
   if( std::isnan(cov(Measurement::AX,    Measurement::AX)   ) ||
       std::isnan(cov(Measurement::AY,    Measurement::AY)   ) ||
-      std::isnan(cov(Measurement::V,     Measurement::V)    ) ||
       std::isnan(cov(Measurement::OMEGA, Measurement::OMEGA)) ||
-      std::isnan(z.v()                                      ) ||
       std::isnan(z.ax()                                     ) ||
       std::isnan(z.ay()                                     ) ||
       std::isnan(z.omega()) )
@@ -106,11 +102,23 @@ bool CTRAWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
 }
 
 
-bool CTRAWrapper::computeFilterStep(const float delta)
+bool CTRAWrapper::computeFilterStep(const float delta,
+                                    const nav_msgs::OdometryConstPtr &odo_msg,
+                                    const sensor_msgs::ImuConstPtr &imu_msg)
 {
 
   // time difference
   u.dt() = delta;
+
+  // velocity
+  u.v() = odo_msg->twist.twist.linear.x;
+
+  // theta
+  double roll, pitch, yaw;
+  tf::Quaternion q;
+  tf::quaternionMsgToTF(odo_msg->pose.pose.orientation, q);
+  tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
+  u.theta() = yaw;
 
   // predict state for current time-step using the kalman filter
   filter.predict(sys, u);
@@ -124,7 +132,7 @@ bool CTRAWrapper::computeFilterStep(const float delta)
 
 
 bool CTRAWrapper::getOutput(geometry_msgs::TransformStamped& tf_msg,
-                          nav_msgs::Odometry& odom_msg)
+                            nav_msgs::Odometry& odom_msg)
 {
   // get new filter state
   const auto& state = filter.getState();

@@ -157,7 +157,7 @@ void BaseWrapper::syncCallback(const nav_msgs::OdometryConstPtr &msg_odo,
 
 
   // compute Kalman filter step
-  computeFilterStep(current_delta.toSec());
+  computeFilterStep(current_delta.toSec(), msg_odo, msg_imu);
 
   // create output messages
   geometry_msgs::TransformStamped tf;

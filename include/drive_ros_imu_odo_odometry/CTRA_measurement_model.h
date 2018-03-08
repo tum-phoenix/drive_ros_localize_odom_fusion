@@ -12,10 +12,10 @@ namespace CTRA {
  * @param T Numeric scalar type
  */
 template<typename T>
-class Measurement : public Kalman::Vector<T, 4>
+class Measurement : public Kalman::Vector<T, 3>
 {
 public:
-    KALMAN_VECTOR(Measurement, T, 4)
+    KALMAN_VECTOR(Measurement, T, 3)
 
     //! acceleration in x-direction
     static constexpr size_t AX = 0;
@@ -23,21 +23,16 @@ public:
     //! acceleration in y-direction
     static constexpr size_t AY = 1;
 
-    //! velocity
-    static constexpr size_t V = 2;
-
     //! turn rate around z-axis
-    static constexpr size_t OMEGA = 3;
+    static constexpr size_t OMEGA = 2;
 
 
     T ax()       const { return (*this)[ AX ]; }
     T ay()       const { return (*this)[ AY ]; }
-    T v()       const { return (*this)[ V ]; }
     T omega()    const { return (*this)[ OMEGA ]; }
 
     T& ax()      { return (*this)[ AX ]; }
     T& ay()      { return (*this)[ AY ]; }
-    T& v()      { return (*this)[ V ]; }
     T& omega()   { return (*this)[ OMEGA ]; }
 };
 
@@ -76,7 +71,6 @@ public:
 
         measurement.ax() = x.a();
         measurement.ay() = x.omega()*x.v(); //ay = omega^2*r = v^2/r  ==> r=v/omega
-        measurement.v() = x.v();
         measurement.omega() = x.omega();
 
         return measurement;
@@ -90,7 +84,6 @@ protected:
         this->H(M::AX, S::A) = 1;
         this->H(M::AY, S::V) = x.omega();
         this->H(M::AY, S::OMEGA) = x.v();
-        this->H(M::V, S::V) = 1;
         this->H(M::OMEGA, S::OMEGA) = 1;
     }
 };

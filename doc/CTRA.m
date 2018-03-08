@@ -3,14 +3,14 @@
 % Used primarly to compute the System Model Jacobian and Limits for Omega -> 0
 % using MATLAB Symbolic Toolbox
 
-syms x y theta v a omega t
+syms x y theta v a omega t dtheta dv
 
 % System model matrix
 f = [
     x + ( 1 / omega^2 ) * (  (v*omega+a*omega*t)*sin(theta+omega*t) + a*( cos(theta+omega*t)-cos(theta) ) - v*omega*sin(theta) );
     y + ( 1 / omega^2 ) * ( -(v*omega+a*omega*t)*cos(theta+omega*t) + a*( sin(theta+omega*t)-sin(theta) ) + v*omega*cos(theta) );
-    theta + t * omega;
-    v + t * a;
+    theta + dtheta + t * omega;
+    v + dv + t * a;
     a;
     omega;
 ];
