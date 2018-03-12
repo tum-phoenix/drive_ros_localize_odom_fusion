@@ -139,8 +139,8 @@ public:
 
         x_.theta() = theta_new + om*dT;
         x_.v()     = v_new + a*dT;
-        x_.a()     = a + 0;
-        x_.omega() = om + 0;
+        x_.a()     = a;
+        x_.omega() = om;
 
         // Return transitioned state vector
         return x_;

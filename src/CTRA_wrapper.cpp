@@ -4,7 +4,6 @@
 CTRAWrapper::CTRAWrapper(ros::NodeHandle& n, ros::NodeHandle& p)
 {
   nh = n; pnh = p;
-
 }
 
 
@@ -70,25 +69,23 @@ bool CTRAWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
   // Set measurement covariances
   Kalman::Covariance<Measurement> cov;
   cov.setZero();
-  cov(Measurement::AX,    Measurement::AX)    = imu_msg->linear_acceleration_covariance[CovElem::lin::linX_linX];
-  cov(Measurement::AY,    Measurement::AY)    = imu_msg->linear_acceleration_covariance[CovElem::lin::linY_linY];
+  cov(Measurement::A,    Measurement::A)      = imu_msg->linear_acceleration_covariance[CovElem::lin::linX_linX]
+                                              + imu_msg->linear_acceleration_covariance[CovElem::lin::linY_linY];
   cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg->angular_velocity_covariance[CovElem::ang::angZ_angZ];
   mm.setCovariance(cov);
 
 
   // set measurements vector z
   z.omega() = imu_msg->angular_velocity.z;
-  z.ax()    = imu_msg->linear_acceleration.x;
-  z.ay()    = imu_msg->linear_acceleration.y;
+  z.a()     = std::sqrt(static_cast<float>(std::pow(imu_msg->linear_acceleration.x, 2) +
+                                           std::pow(imu_msg->linear_acceleration.y, 2)));
 
   ROS_DEBUG_STREAM("measurementVector: " << z);
 
   // check if there is something wrong
-  if( std::isnan(cov(Measurement::AX,    Measurement::AX)   ) ||
-      std::isnan(cov(Measurement::AY,    Measurement::AY)   ) ||
+  if( std::isnan(cov(Measurement::A,     Measurement::A)    ) ||
       std::isnan(cov(Measurement::OMEGA, Measurement::OMEGA)) ||
-      std::isnan(z.ax()                                     ) ||
-      std::isnan(z.ay()                                     ) ||
+      std::isnan(z.a()                                      ) ||
       std::isnan(z.omega()) )
   {
     ROS_ERROR("Measurement is NAN! Reinit Kalman.");
@@ -111,7 +108,8 @@ bool CTRAWrapper::computeFilterStep(const float delta,
   u.dt() = delta;
 
   // velocity
-  u.v() = odo_msg->twist.twist.linear.x;
+  u.v() = std::sqrt(static_cast<float>(std::pow(odo_msg->twist.twist.linear.x, 2)
+                                     + std::pow(odo_msg->twist.twist.linear.y, 2)));
 
   // theta
   double roll, pitch, yaw;
@@ -154,7 +152,7 @@ bool CTRAWrapper::getOutput(geometry_msgs::TransformStamped& tf_msg,
       std::isnan(state.a())       ||
       std::isnan(state.omega()))
   {
-    ROS_ERROR("State is NAN! Reinit Kalman.");
+    ROS_ERROR_STREAM("State is NAN! Reinit Kalman. State vector: " << state);
     // reset covariances and filter
     initFilterProcessCov();
     initFilterState();
