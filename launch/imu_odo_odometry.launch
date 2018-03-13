@@ -40,7 +40,7 @@
 
         All model specific parameters should be defined in the respective vehicle config file (see below).
     -->
-    <arg name="vehicle_model" default="CTRV"/>
+    <arg name="vehicle_model" default="CTRA"/>
 
 
     <!-- vehicle configuration file it should be named: <vehicle_model>_<vehicle>.yaml -->

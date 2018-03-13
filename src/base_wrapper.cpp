@@ -7,7 +7,7 @@ bool BaseWrapper::initROS(bool use_bag)
   int queue_size;
 
   // file path
-  std::string bag_file_path, debug_out_file_path;
+  std::string debug_out_file_path;
 
   // ros parameters
   pnh.param<int>("queue_size", queue_size, 5);

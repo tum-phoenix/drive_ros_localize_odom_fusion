@@ -1,5 +1,13 @@
 #include "drive_ros_imu_odo_odometry/CTRA_wrapper.h"
 
+// TODO: put this somewhere else
+#include "drive_ros_imu_odo_odometry/moving_average.h"
+static MovingAverage cov_omega(10);
+static MovingAverage cov_a(10);
+static MovingAverage mm_omega(10);
+static MovingAverage mm_a(10);
+static MovingAverage in_v(10);
+
 
 CTRAWrapper::CTRAWrapper(ros::NodeHandle& n, ros::NodeHandle& p)
 {
@@ -63,22 +71,25 @@ bool CTRAWrapper::initFilterProcessCov()
 
 
 bool CTRAWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
-                                     const sensor_msgs::ImuConstPtr &imu_msg)
+                                    const sensor_msgs::ImuConstPtr &imu_msg)
 {
 
   // Set measurement covariances
   Kalman::Covariance<Measurement> cov;
   cov.setZero();
-  cov(Measurement::A,    Measurement::A)      = imu_msg->linear_acceleration_covariance[CovElem::lin::linX_linX]
-                                              + imu_msg->linear_acceleration_covariance[CovElem::lin::linY_linY];
-  cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg->angular_velocity_covariance[CovElem::ang::angZ_angZ];
+
+  cov_omega.add(imu_msg->angular_velocity_covariance[CovElem::ang::angZ_angZ]);
+  cov_a.add(imu_msg->linear_acceleration_covariance[CovElem::lin::linX_linX]);
+  cov(Measurement::A,     Measurement::A)     = cov_omega.getCurrentAverage();
+  cov(Measurement::OMEGA, Measurement::OMEGA) = cov_a.getCurrentAverage();
   mm.setCovariance(cov);
 
 
   // set measurements vector z
-  z.omega() = imu_msg->angular_velocity.z;
-  z.a()     = std::sqrt(static_cast<float>(std::pow(imu_msg->linear_acceleration.x, 2) +
-                                           std::pow(imu_msg->linear_acceleration.y, 2)));
+  mm_omega.add(imu_msg->angular_velocity.z);
+  mm_a.add(imu_msg->linear_acceleration.x);
+  z.omega() = mm_omega.getCurrentAverage();
+  z.a()     = mm_a.getCurrentAverage();
 
   ROS_DEBUG_STREAM("measurementVector: " << z);
 
@@ -108,8 +119,9 @@ bool CTRAWrapper::computeFilterStep(const float delta,
   u.dt() = delta;
 
   // velocity
-  u.v() = std::sqrt(static_cast<float>(std::pow(odo_msg->twist.twist.linear.x, 2)
-                                     + std::pow(odo_msg->twist.twist.linear.y, 2)));
+  in_v.add(std::sqrt(static_cast<float>(std::pow(odo_msg->twist.twist.linear.x, 2)
+                                        + std::pow(odo_msg->twist.twist.linear.y, 2))));
+  u.v() = in_v.getCurrentAverage();
 
   // theta
   double roll, pitch, yaw;
