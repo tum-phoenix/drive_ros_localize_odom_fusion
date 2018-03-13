@@ -34,11 +34,11 @@ def objective(params):
     # path definitions
     path_home = "/home/fabian"
     path_catkin_ws = path_home + "/catkin_ws"
-    path_ros_package = path_catkin_ws + "/src/drive_ros_config/modules/drive_ros_imu_odo_odometry"
-    path_config_file = path_ros_package + "/config/phoenix_cc2017.yaml"
+    path_ros_package = path_catkin_ws + "/src/drive_ros_config/modules/drive_ros_localize_inertial_navigation_system"
+    path_config_file = path_ros_package + "/config/CTRA_ftm_rc_car_1.yaml"
     path_trial_runner = path_ros_package + "/scripts/runTrial.sh"
-    path_bag_file = path_ros_package + "/test/circle_001.bag"
-    path_launch_file = path_ros_package + "/test/circle_001.launch"
+    path_bag_file = path_ros_package + "/test/circle_002.bag"
+    path_launch_file = path_ros_package + "/test/circle_002.launch"
     path_results = "/data/KalmanTuningLogs/"
 
     # TODO: make them bag specific (like: 1m error of 100m length)
