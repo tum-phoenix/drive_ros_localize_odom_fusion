@@ -201,8 +201,10 @@ protected:
         this->F( S::Y, S::THETA ) = -std::cos(x.theta())*x.v()*u.dt();
         this->F( S::Y, S::V ) = std::sin(x.theta()) * u.dt();
 
+        this->F( S::THETA, S::THETA ) = 0;
         this->F( S::THETA, S::OMEGA ) = u.dt();
 
+        this->F( S::V, S::V ) = 0;
         this->F( S::V, S::A ) = u.dt();
 
     }
