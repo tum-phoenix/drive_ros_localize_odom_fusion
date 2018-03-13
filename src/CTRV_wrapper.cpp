@@ -74,7 +74,8 @@ bool CTRVWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
 
 
   // set measurements vector z
-  z.v()     = odo_msg->twist.twist.linear.x;
+  z.v()     = std::sqrt(static_cast<float>(std::pow(odo_msg->twist.twist.linear.x, 2) +
+                                           std::pow(odo_msg->twist.twist.linear.y, 2)));
   z.omega() = imu_msg->angular_velocity.z;
 
   ROS_DEBUG_STREAM("measurementVector: " << z);
