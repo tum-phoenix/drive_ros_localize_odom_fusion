@@ -123,13 +123,6 @@ bool CTRAWrapper::computeFilterStep(const float delta,
                                         + std::pow(odo_msg->twist.twist.linear.y, 2))));
   u.v() = in_v.getCurrentAverage();
 
-  // theta
-  double roll, pitch, yaw;
-  tf::Quaternion q;
-  tf::quaternionMsgToTF(odo_msg->pose.pose.orientation, q);
-  tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
-  u.theta() = yaw;
-
   // predict state for current time-step using the kalman filter
   filter.predict(sys, u);
 
