@@ -94,6 +94,12 @@ public:
     return average;
   }
 
+  double addAndGetCrrtAvg(double x)
+  {
+    add(x);
+    return average;
+  }
+
   /**
    * Clears the vector of data by setting it to zero.
    */
