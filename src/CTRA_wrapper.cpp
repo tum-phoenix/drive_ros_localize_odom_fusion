@@ -2,8 +2,8 @@
 
 // TODO: put this somewhere else
 #include "drive_ros_imu_odo_odometry/moving_average.h"
-static MovingAverage average_v(10);
-static MovingAverage average_v_cov(10);
+static MovingAverage average_v(3);
+static MovingAverage average_v_cov(3);
 
 
 CTRAWrapper::CTRAWrapper(ros::NodeHandle& n, ros::NodeHandle& p)
@@ -74,14 +74,15 @@ bool CTRAWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
   // Set measurement covariances
   Kalman::Covariance<Measurement> cov;
   cov.setZero();
-  cov(Measurement::V,       Measurement::V)     = average_v_cov.addAndGetCrrtAvg(0.003);
+  cov(Measurement::V, Measurement::V) = average_v_cov.addAndGetCrrtAvg(std::sqrt(static_cast<float>(std::pow(odo_msg->twist.covariance[CovElem::lin_ang::linX_linX], 2)
+                                                                                                  + std::pow(odo_msg->twist.covariance[CovElem::lin_ang::linY_linY], 2))));
   mm.setCovariance(cov);
 
 
 
   // set measurements vector z
   z.v() = average_v.addAndGetCrrtAvg( std::sqrt(static_cast<float>(std::pow(odo_msg->twist.twist.linear.x, 2)
-                                       + std::pow(odo_msg->twist.twist.linear.y, 2))) );
+                                                                 + std::pow(odo_msg->twist.twist.linear.y, 2))) );
 
   ROS_DEBUG_STREAM("measurementVector: " << z);
 
@@ -109,6 +110,12 @@ bool CTRAWrapper::computeFilterStep(const float delta,
   u.dt() = delta;
   u.omega() = imu_msg->angular_velocity.z;
   u.a() =     imu_msg->linear_acceleration.x;
+
+  // set system covariance
+  auto cov(sys.getCovariance());
+  cov(State::A, State::A) = imu_msg->linear_acceleration_covariance[CovElem::lin::linX_linX];
+  cov(State::OMEGA, State::OMEGA) = imu_msg->angular_velocity_covariance[CovElem::ang::angZ_angZ];
+  sys.setCovariance(cov);
 
   // predict state for current time-step using the kalman filter
   filter.predict(sys, u);
