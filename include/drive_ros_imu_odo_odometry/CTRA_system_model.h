@@ -51,23 +51,28 @@ public:
  * @param T Numeric scalar type
  */
 template<typename T>
-class Control : public Kalman::Vector<T, 2>
+class Control : public Kalman::Vector<T, 3>
 {
 public:
-    KALMAN_VECTOR(Control, T, 2)
+    KALMAN_VECTOR(Control, T, 3)
 
     //! time since filter was last called
     static constexpr size_t DT = 0;
-    //! velocity
-    static constexpr size_t V = 1;
+    //! acceleration
+    static constexpr size_t A = 1;
+    //! omega
+    static constexpr size_t OMEGA = 2;
+
 
 
     T dt()      const { return (*this)[ DT ]; }
-    T v()       const { return (*this)[ V ]; }
+    T a()       const { return (*this)[ A ]; }
+    T omega()   const { return (*this)[ OMEGA ]; }
 
 
     T& dt()     { return (*this)[ DT ]; }
-    T& v()      { return (*this)[ V ]; }
+    T& a()      { return (*this)[ A ]; }
+    T& omega()  { return (*this)[ OMEGA ]; }
 };
 
 /**
@@ -113,7 +118,7 @@ public:
         auto a = x.a();
         auto om = x.omega();
         auto dT = u.dt();
-        auto v_new = u.v();
+
 
         auto cosTh = std::cos(th);
         auto sinTh = std::sin(th);
@@ -133,9 +138,9 @@ public:
         }
 
         x_.theta() = x.theta() + om*dT;
-        x_.v()     = v_new + a*dT;
-        x_.a()     = a;
-        x_.omega() = om;
+        x_.v()     = x.v() + a*dT;
+        x_.a()     = u.a();
+        x_.omega() = u.omega();
 
         // Return transitioned state vector
         return x_;
@@ -196,11 +201,12 @@ protected:
         this->F( S::Y, S::THETA ) = -std::cos(x.theta())*x.v()*u.dt();
         this->F( S::Y, S::V ) = std::sin(x.theta()) * u.dt();
 
-        //this->F( S::THETA, S::THETA ) = 0;
         this->F( S::THETA, S::OMEGA ) = u.dt();
 
-        this->F( S::V, S::V ) = 0;
         this->F( S::V, S::A ) = u.dt();
+
+        this->F( S::A, S::A ) = 0;
+        this->F( S::OMEGA, S::OMEGA ) = 0;
 
     }
 };

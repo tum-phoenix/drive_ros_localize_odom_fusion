@@ -7,7 +7,7 @@ bool BaseWrapper::initROS(bool use_bag)
   int queue_size;
 
   // file path
-  std::string debug_out_file_path;
+  std::string debug_out_file_path, odo_out_topic;
 
   // ros parameters
   pnh.param<int>("queue_size", queue_size, 5);
@@ -17,6 +17,7 @@ bool BaseWrapper::initROS(bool use_bag)
 
   pnh.param<std::string>("odo_topic_name", odo_topic_name, "/odo");
   pnh.param<std::string>("imu_topic_name", imu_topic_name, "/imu");
+  pnh.param<std::string>("odo_out_topic", odo_out_topic, "/odom");
 
   pnh.param<std::string>("debug_out_file_path", debug_out_file_path, "/tmp/odom_debug.csv");
   pnh.param<bool>("debug_out", debug_out_file, false);
@@ -26,7 +27,7 @@ bool BaseWrapper::initROS(bool use_bag)
   max_time_between_meas = ros::Duration(max_time_between_meas_fl);
 
   // odometry publisher
-  odo_pub = nh.advertise<nav_msgs::Odometry>(static_frame, 0);
+  odo_pub = nh.advertise<nav_msgs::Odometry>(odo_out_topic, 0);
 
   // debug file
   if(debug_out_file){

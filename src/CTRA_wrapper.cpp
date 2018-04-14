@@ -2,11 +2,8 @@
 
 // TODO: put this somewhere else
 #include "drive_ros_imu_odo_odometry/moving_average.h"
-static MovingAverage cov_omega(10);
-static MovingAverage cov_a(10);
-static MovingAverage mm_omega(10);
-static MovingAverage mm_a(10);
-static MovingAverage in_v(10);
+static MovingAverage average_v(3);
+static MovingAverage average_v_cov(3);
 
 
 CTRAWrapper::CTRAWrapper(ros::NodeHandle& n, ros::NodeHandle& p)
@@ -77,27 +74,21 @@ bool CTRAWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
   // Set measurement covariances
   Kalman::Covariance<Measurement> cov;
   cov.setZero();
-
-  cov_omega.add(imu_msg->angular_velocity_covariance[CovElem::ang::angZ_angZ]);
-  cov_a.add(imu_msg->linear_acceleration_covariance[CovElem::lin::linX_linX]);
-  cov(Measurement::A,     Measurement::A)     = cov_omega.getCurrentAverage();
-  cov(Measurement::OMEGA, Measurement::OMEGA) = cov_a.getCurrentAverage();
+  cov(Measurement::V, Measurement::V) = average_v_cov.addAndGetCrrtAvg(std::sqrt(static_cast<float>(std::pow(odo_msg->twist.covariance[CovElem::lin_ang::linX_linX], 2)
+                                                                                                  + std::pow(odo_msg->twist.covariance[CovElem::lin_ang::linY_linY], 2))));
   mm.setCovariance(cov);
 
 
+
   // set measurements vector z
-  mm_omega.add(imu_msg->angular_velocity.z);
-  mm_a.add(imu_msg->linear_acceleration.x);
-  z.omega() = mm_omega.getCurrentAverage();
-  z.a()     = mm_a.getCurrentAverage();
+  z.v() = average_v.addAndGetCrrtAvg( std::sqrt(static_cast<float>(std::pow(odo_msg->twist.twist.linear.x, 2)
+                                                                 + std::pow(odo_msg->twist.twist.linear.y, 2))) );
 
   ROS_DEBUG_STREAM("measurementVector: " << z);
 
   // check if there is something wrong
-  if( std::isnan(cov(Measurement::A,     Measurement::A)    ) ||
-      std::isnan(cov(Measurement::OMEGA, Measurement::OMEGA)) ||
-      std::isnan(z.a()                                      ) ||
-      std::isnan(z.omega()) )
+  if( std::isnan(cov(Measurement::V,     Measurement::V)    ) ||
+      std::isnan(z.v()) )
   {
     ROS_ERROR("Measurement is NAN! Reinit Kalman.");
     // reset covariances and filter
@@ -117,11 +108,14 @@ bool CTRAWrapper::computeFilterStep(const float delta,
 
   // time difference
   u.dt() = delta;
+  u.omega() = imu_msg->angular_velocity.z;
+  u.a() =     imu_msg->linear_acceleration.x;
 
-  // velocity
-  in_v.add(std::sqrt(static_cast<float>(std::pow(odo_msg->twist.twist.linear.x, 2)
-                                        + std::pow(odo_msg->twist.twist.linear.y, 2))));
-  u.v() = in_v.getCurrentAverage();
+  // set system covariance
+  auto cov(sys.getCovariance());
+  cov(State::A, State::A) = imu_msg->linear_acceleration_covariance[CovElem::lin::linX_linX];
+  cov(State::OMEGA, State::OMEGA) = imu_msg->angular_velocity_covariance[CovElem::ang::angZ_angZ];
+  sys.setCovariance(cov);
 
   // predict state for current time-step using the kalman filter
   filter.predict(sys, u);
