@@ -10,8 +10,11 @@
     <arg name="imu_topic_name" default="/from_mav/imu/data"/>
     <arg name="imu_topic_rate" default="250"/>
 
+    <!-- fused odometry output -->
+    <arg name="odo_out_topic" default="odom" />
+
     <!-- tf parent frame of published tf -->
-    <arg name="static_frame" default="odometry"/>
+    <arg name="static_frame" default="odom"/>
 
     <!-- tf child frame of published tf -->
     <arg name="moving_frame" default="rear_axis_middle_ground"/>
@@ -75,6 +78,7 @@
         <param name="imu_topic_name" type="str" value="$(arg imu_topic_name)"/>
         <param name="odo_topic_rate" type="int" value="$(arg odo_topic_rate)" />
         <param name="imu_topic_rate" type="int" value="$(arg imu_topic_rate)" />
+        <param name="odo_out_topic"  type="str" value="$(arg odo_out_topic)" />
         <param name="queue_size" type="int" value="$(arg queue_size)" />
         <param name="age_penalty" type="double" value="$(arg age_penalty)" />
         <param name="max_time_between_meas" type="double" value="$(arg max_time_between_meas)" />

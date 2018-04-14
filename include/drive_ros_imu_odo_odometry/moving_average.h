@@ -94,6 +94,9 @@ public:
     return average;
   }
 
+  /**
+   * First adds a new element and then returns the current average.
+   */
   double addAndGetCrrtAvg(double x)
   {
     add(x);
