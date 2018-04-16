@@ -47,7 +47,7 @@
 
 
     <!-- vehicle configuration file it should be named: <vehicle_model>_<vehicle>.yaml -->
-    <arg name="vehicle_config" default="$(find drive_ros_imu_odo_odometry)/config/$(arg vehicle_model)_$(arg vehicle).yaml" />
+    <arg name="vehicle_config" default="$(find drive_ros_localize_odom_fusion)/config/$(arg vehicle_model)_$(arg vehicle).yaml" />
 
 
     <!--
@@ -63,7 +63,7 @@
 
     <!-- read messages from bag file instead of incoming messages -->
     <arg name="read_from_bag" default="false" />
-    <arg name="bag_file_path" default="$(find drive_ros_imu_odo_odometry)/test/circle_001.bag" />
+    <arg name="bag_file_path" default="$(find drive_ros_localize_odom_fusion)/test/circle_001.bag" />
 
     <!-- forward output to [screen|log] -->
     <arg name="output" default="screen"/>
@@ -72,7 +72,7 @@
     <!-- more infos: https://en.wikipedia.org/wiki/Nice_(Unix) -->
     <arg name="nice_val_pre" default="nice -n -5"/>
 
-    <node name="imu_ros_odometry" pkg="drive_ros_imu_odo_odometry" type="drive_ros_imu_odo_odometry_node"
+    <node name="odom_fusion" pkg="drive_ros_localize_odom_fusion" type="drive_ros_localize_odom_fusion_node"
           output="$(arg output)" launch-prefix="$(arg nice_val_pre)" >
         <param name="odo_topic_name" type="str" value="$(arg odo_topic_name)"/>
         <param name="imu_topic_name" type="str" value="$(arg imu_topic_name)"/>

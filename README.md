@@ -1,11 +1,6 @@
 # Odometry Fusion
 Calculates Kalman filtered vehicle odometry based on different sources.
 
-Please note that: odometry != odometer
-* odometer = [distance traveled](https://en.wikipedia.org/wiki/Odometer)
-* odometry = [estimation of robots position & state](https://en.wikipedia.org/wiki/Odometry)
-
-
 ## dependencies
 - [Kalman Lib](https://github.com/mherb/kalman)
 

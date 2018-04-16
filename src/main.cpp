@@ -1,11 +1,11 @@
-#include "drive_ros_imu_odo_odometry/CTRA_wrapper.h"
-#include "drive_ros_imu_odo_odometry/CTRV_wrapper.h"
+#include "drive_ros_localize_odom_fusion/CTRA_wrapper.h"
+#include "drive_ros_localize_odom_fusion/CTRV_wrapper.h"
 
 // main function
 int main(int argc, char **argv)
 {
   // set up node
-  ros::init(argc, argv, "imu_odo_odometry");
+  ros::init(argc, argv, "odom_fusion");
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
 
@@ -46,9 +46,9 @@ int main(int argc, char **argv)
   // initialize ros stuff
   if(model->initROS(use_bag))
   {
-    ROS_INFO("IMU & Odometer odometry node succesfully initialized");
+    ROS_INFO("Odometry fusion node succesfully initialized");
   }else{
-    ROS_ERROR("IMU & Odometer odometry node failed!");
+    ROS_ERROR("Odometry fusion node failed!");
   }
 
 

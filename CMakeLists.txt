@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(drive_ros_imu_odo_odometry)
+project(drive_ros_localize_odom_fusion)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -132,7 +132,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
- add_executable(${PROJECT_NAME}_node src/imu_odo_odometry_node.cpp
+ add_executable(${PROJECT_NAME}_node src/main.cpp
                                      src/base_wrapper.cpp
                                      src/CTRA_wrapper.cpp
                                      src/CTRV_wrapper.cpp

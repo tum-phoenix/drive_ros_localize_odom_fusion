@@ -1,7 +1,7 @@
-#include "drive_ros_imu_odo_odometry/CTRA_wrapper.h"
+#include "drive_ros_localize_odom_fusion/CTRA_wrapper.h"
 
 // TODO: put this somewhere else
-#include "drive_ros_imu_odo_odometry/moving_average.h"
+#include "drive_ros_localize_odom_fusion/moving_average.h"
 static MovingAverage average_v(3);
 static MovingAverage average_v_cov(3);
 
