@@ -1,5 +1,5 @@
-# IMU & Odemeter Odometry
-Calculates Kalman filtered vehicle odometry based on imu and odometer sensors.
+# Odometry Fusion
+Calculates Kalman filtered vehicle odometry based on different sources.
 
 Please note that: odometry != odometer
 * odometer = [distance traveled](https://en.wikipedia.org/wiki/Odometer)
