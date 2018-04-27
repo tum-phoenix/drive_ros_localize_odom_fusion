@@ -1,5 +1,5 @@
 #include "drive_ros_localize_odom_fusion/base_wrapper.h"
-
+#include "drive_ros_localize_odom_fusion/save_odom_in_CSV.h"
 
 bool BaseWrapper::initROS(bool use_bag)
 {
@@ -31,7 +31,7 @@ bool BaseWrapper::initROS(bool use_bag)
 
   // debug file
   if(debug_out_file){
-    writeOutputHeader(debug_out_file_path);
+    SaveOdomInCSV::writeHeader(debug_out_file_path, file_out_log);
   }
 
   // input of messages (read from bag file or create real subscribers)
@@ -189,76 +189,13 @@ void BaseWrapper::syncCallback(const nav_msgs::OdometryConstPtr &msg_odo,
   // debug to file
   if(debug_out_file)
   {
-    writeOutputResult(&odom);
+    SaveOdomInCSV::writeMsg(odom, file_out_log);
   }
 
   // save timestamp
   last_timestamp = current_timestamp;
   last_delta = current_delta;
 
-}
-
-// write header file of output log file
-void BaseWrapper::writeOutputHeader(std::string filename)
-{
-  file_out_log.open( filename );
-
-  file_out_log << "timestamp,";
-
-  file_out_log << "pose_posX,"
-               << "pose_posY,"
-               << "pose_posZ,"
-               << "pose_oriX,"
-               << "pose_oriY,"
-               << "pose_oriZ,";
-
-  for(int i=0; i<36; i++)
-    file_out_log << "pose_cov_[" << i << "],";
-
-  file_out_log << "twist_linX,"
-               << "twist_linY,"
-               << "twist_linZ,"
-               << "twist_angX,"
-               << "twist_angY,"
-               << "twist_angZ,";
-
-  for(int i=0; i<36; i++)
-    file_out_log << "twist_cov_[" << i << "],";
-
-   file_out_log << std::endl;
-}
-
-// write the odometry message to output log file
-void BaseWrapper::writeOutputResult(const nav_msgs::Odometry *msg)
-{
-  file_out_log << msg->header.stamp.toSec() << ",";
-
-  double roll, pitch, yaw;
-  tf::Quaternion q;
-  tf::quaternionMsgToTF(msg->pose.pose.orientation, q);
-  tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
-
-  file_out_log << msg->pose.pose.position.x << ","
-               << msg->pose.pose.position.y << ","
-               << msg->pose.pose.position.z << ","
-               << roll  << ","
-               << pitch << ","
-               << yaw   << ",";
-
-  for(int i=0; i<36; i++)
-    file_out_log << msg->pose.covariance.at(i) << ",";
-
-  file_out_log << msg->twist.twist.linear.x << ","
-               << msg->twist.twist.linear.y << ","
-               << msg->twist.twist.linear.z << ","
-               << msg->twist.twist.angular.x << ","
-               << msg->twist.twist.angular.y << ","
-               << msg->twist.twist.angular.z << ",";
-
-  for(int i=0; i<36; i++)
-    file_out_log << msg->twist.covariance.at(i) << ",";
-
-  file_out_log << std::endl;
 }
 
 // read data from bag and feed it into fake subscriber

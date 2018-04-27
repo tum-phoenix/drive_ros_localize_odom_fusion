@@ -83,10 +83,6 @@ protected:
   bool svrReinitState(std_srvs::Trigger::Request  &req,
                       std_srvs::Trigger::Response &res);
 
-  // debug file operations
-  void writeOutputHeader(std::string filename);
-  void writeOutputResult(const nav_msgs::Odometry* msg);
-
   // ROS subscriber + synchronizer
   message_filters::Subscriber<sensor_msgs::Imu> *imu_sub;
   message_filters::Subscriber<nav_msgs::Odometry> *odo_sub;
