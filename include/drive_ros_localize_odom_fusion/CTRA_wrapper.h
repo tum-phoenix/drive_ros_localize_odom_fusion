@@ -30,11 +30,13 @@ private:
   bool initFilterState();
   bool initFilterProcessCov();
 
-  bool insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
+  bool insertMeasurement(const nav_msgs::OdometryConstPtr &odo_pos_msg,
+                         const nav_msgs::OdometryConstPtr &odo_vel_msg,
                          const sensor_msgs::ImuConstPtr &imu_msg);
 
   bool computeFilterStep(const float,
-                         const nav_msgs::OdometryConstPtr &odo_msg,
+                         const nav_msgs::OdometryConstPtr &odo_pos_msg,
+                         const nav_msgs::OdometryConstPtr &odo_vel_msg,
                          const sensor_msgs::ImuConstPtr &imu_msg);
 
   bool getOutput(geometry_msgs::TransformStamped& tf_msg,

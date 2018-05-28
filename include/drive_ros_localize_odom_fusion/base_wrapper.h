@@ -54,12 +54,14 @@ protected:
   virtual bool initFilterProcessCov() = 0;
 
   // collect data and prepare computing
-  virtual bool insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
+  virtual bool insertMeasurement(const nav_msgs::OdometryConstPtr &odo_pos_msg,
+                                 const nav_msgs::OdometryConstPtr &odo_vel_msg,
                                  const sensor_msgs::ImuConstPtr &imu_msg) = 0;
 
   // compute one kalman step
   virtual bool computeFilterStep(const float,
-                                 const nav_msgs::OdometryConstPtr &odo_msg,
+                                 const nav_msgs::OdometryConstPtr &odo_pos_msg,
+                                 const nav_msgs::OdometryConstPtr &odo_vel_msg,
                                  const sensor_msgs::ImuConstPtr &imu_msg) = 0;
 
   // publish data
@@ -77,6 +79,8 @@ protected:
   void syncCallback(const nav_msgs::OdometryConstPtr &msg_odo,
                     const sensor_msgs::ImuConstPtr &msg_imu);
 
+  void posCallback(const nav_msgs::OdometryConstPtr &msg_odo);
+
   // services
   bool svrReloadProcCov(std_srvs::Trigger::Request  &req,
                         std_srvs::Trigger::Response &res);
@@ -85,9 +89,10 @@ protected:
 
   // ROS subscriber + synchronizer
   message_filters::Subscriber<sensor_msgs::Imu> *imu_sub;
-  message_filters::Subscriber<nav_msgs::Odometry> *odo_sub;
+  message_filters::Subscriber<nav_msgs::Odometry> *odo_vel_sub;
   message_filters::Synchronizer<SyncPolicy> *sync;
   SyncPolicy* policy;
+  ros::Subscriber odo_pos_sub;
 
   // ROS publisher or broadcaster
   tf2_ros::TransformBroadcaster br;
@@ -100,13 +105,19 @@ protected:
   // ROS times and durations
   ros::Time last_timestamp;
   ros::Duration last_delta;
+  ros::Time last_odo_pos_time;
+
+  // messages
+  nav_msgs::OdometryConstPtr last_odo_pos_msg;
+  std::mutex odo_pos_mutex;
 
   // parameter
   ros::Duration max_time_between_meas;
   bool use_sensor_time_for_pub;
   std::string static_frame;
   std::string moving_frame;
-  std::string odo_topic_name;
+  std::string odo_pos_topic_name;
+  std::string odo_vel_topic_name;
   std::string imu_topic_name;
 
   // debug to file

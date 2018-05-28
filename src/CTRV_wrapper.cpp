@@ -61,21 +61,22 @@ bool CTRVWrapper::initFilterProcessCov()
 
 
 
-bool CTRVWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
-                                     const sensor_msgs::ImuConstPtr &imu_msg)
+bool CTRVWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_pos_msg,
+                                    const nav_msgs::OdometryConstPtr &odo_vel_msg,
+                                    const sensor_msgs::ImuConstPtr &imu_msg)
 {
 
   // Set measurement covariances
   Kalman::Covariance<Measurement> cov;
   cov.setZero();
   cov(Measurement::OMEGA, Measurement::OMEGA) = imu_msg->angular_velocity_covariance[CovElem::ang::angZ_angZ];
-  cov(Measurement::V,     Measurement::V)     = odo_msg->twist.covariance[CovElem::lin_ang::linX_linX];
+  cov(Measurement::V,     Measurement::V)     = odo_vel_msg->twist.covariance[CovElem::lin_ang::linX_linX];
   mm.setCovariance(cov);
 
 
   // set measurements vector z
-  z.v()     = std::sqrt(static_cast<float>(std::pow(odo_msg->twist.twist.linear.x, 2) +
-                                           std::pow(odo_msg->twist.twist.linear.y, 2)));
+  z.v()     = std::sqrt(static_cast<float>(std::pow(odo_vel_msg->twist.twist.linear.x, 2) +
+                                           std::pow(odo_vel_msg->twist.twist.linear.y, 2)));
   z.omega() = imu_msg->angular_velocity.z;
 
   ROS_DEBUG_STREAM("measurementVector: " << z);
@@ -98,7 +99,8 @@ bool CTRVWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
 
 
 bool CTRVWrapper::computeFilterStep(const float delta,
-                                    const nav_msgs::OdometryConstPtr &odo_msg,
+                                    const nav_msgs::OdometryConstPtr &odo_pos_msg,
+                                    const nav_msgs::OdometryConstPtr &odo_vel_msg,
                                     const sensor_msgs::ImuConstPtr &imu_msg)
 {
 

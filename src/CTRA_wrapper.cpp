@@ -67,22 +67,23 @@ bool CTRAWrapper::initFilterProcessCov()
 
 
 
-bool CTRAWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
+bool CTRAWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_pos_msg,
+                                    const nav_msgs::OdometryConstPtr &odo_vel_msg,
                                     const sensor_msgs::ImuConstPtr &imu_msg)
 {
 
   // Set measurement covariances
   Kalman::Covariance<Measurement> cov;
   cov.setZero();
-  cov(Measurement::V, Measurement::V) = average_v_cov.addAndGetCrrtAvg(std::sqrt(static_cast<float>(std::pow(odo_msg->twist.covariance[CovElem::lin_ang::linX_linX], 2)
-                                                                                                  + std::pow(odo_msg->twist.covariance[CovElem::lin_ang::linY_linY], 2))));
+  cov(Measurement::V, Measurement::V) = average_v_cov.addAndGetCrrtAvg(std::sqrt(static_cast<float>(std::pow(odo_vel_msg->twist.covariance[CovElem::lin_ang::linX_linX], 2)
+                                                                                                  + std::pow(odo_vel_msg->twist.covariance[CovElem::lin_ang::linY_linY], 2))));
   mm.setCovariance(cov);
 
 
 
   // set measurements vector z
-  z.v() = average_v.addAndGetCrrtAvg( std::sqrt(static_cast<float>(std::pow(odo_msg->twist.twist.linear.x, 2)
-                                                                 + std::pow(odo_msg->twist.twist.linear.y, 2))) );
+  z.v() = average_v.addAndGetCrrtAvg( std::sqrt(static_cast<float>(std::pow(odo_vel_msg->twist.twist.linear.x, 2)
+                                                                 + std::pow(odo_vel_msg->twist.twist.linear.y, 2))) );
 
   ROS_DEBUG_STREAM("measurementVector: " << z);
 
@@ -102,7 +103,8 @@ bool CTRAWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
 
 
 bool CTRAWrapper::computeFilterStep(const float delta,
-                                    const nav_msgs::OdometryConstPtr &odo_msg,
+                                    const nav_msgs::OdometryConstPtr &odo_pos_msg,
+                                    const nav_msgs::OdometryConstPtr &odo_vel_msg,
                                     const sensor_msgs::ImuConstPtr &imu_msg)
 {
 

@@ -15,7 +15,8 @@ bool BaseWrapper::initROS(bool use_bag)
   pnh.param<std::string>("moving_frame", moving_frame, "rear_axis_middle_ground");
   pnh.param<bool>("use_sensor_time_for_pub", use_sensor_time_for_pub, false);
 
-  pnh.param<std::string>("odo_topic_name", odo_topic_name, "/odo");
+  pnh.param<std::string>("odo_pos_topic_name", odo_pos_topic_name, "/odo");
+  pnh.param<std::string>("odo_vel_topic_name", odo_vel_topic_name, "/odo");
   pnh.param<std::string>("imu_topic_name", imu_topic_name, "/imu");
   pnh.param<std::string>("odo_out_topic", odo_out_topic, "/odom");
 
@@ -38,27 +39,29 @@ bool BaseWrapper::initROS(bool use_bag)
   if(use_bag){
 
     // fake subscriber
-    odo_sub = new message_filters::Subscriber<nav_msgs::Odometry>();
+    odo_pos_sub = ros::Subscriber();
+    odo_vel_sub = new message_filters::Subscriber<nav_msgs::Odometry>();
     imu_sub = new message_filters::Subscriber<sensor_msgs::Imu>();
 
 
   }else{
 
     // real subscribers
-    odo_sub = new message_filters::Subscriber<nav_msgs::Odometry>(pnh, odo_topic_name, queue_size);
+    odo_pos_sub = pnh.subscribe(odo_pos_topic_name, queue_size, &BaseWrapper::posCallback, this);
+    odo_vel_sub = new message_filters::Subscriber<nav_msgs::Odometry>(pnh, odo_vel_topic_name, queue_size);
     imu_sub = new message_filters::Subscriber<sensor_msgs::Imu>(pnh, imu_topic_name, queue_size);
 
   }
 
   // initialize policy and register sync callback
   policy = new SyncPolicy(queue_size);
-  sync = new message_filters::Synchronizer<SyncPolicy>(static_cast<SyncPolicy>(*policy), *odo_sub, *imu_sub);
+  sync = new message_filters::Synchronizer<SyncPolicy>(static_cast<SyncPolicy>(*policy), *odo_vel_sub, *imu_sub);
   sync->registerCallback(boost::bind(&BaseWrapper::syncCallback, this, _1, _2));
 
   // parameters can be found here: http://wiki.ros.org/message_filters/ApproximateTime
-  double age_penalty, odo_topic_rate, imu_topic_rate, max_time_between_imu_odo;
+  double age_penalty, odo_vel_topic_rate, imu_topic_rate, max_time_between_imu_odo;
   pnh.param<double>("age_penalty", age_penalty, 300);
-  pnh.param<double>("odo_topic_rate", odo_topic_rate, 300);
+  pnh.param<double>("odo_vel_topic_rate", odo_vel_topic_rate, 300);
   pnh.param<double>("imu_topic_rate", imu_topic_rate, 300);
   pnh.param<double>("max_time_between_imu_odo", max_time_between_imu_odo, 0.1);
 
@@ -66,7 +69,7 @@ bool BaseWrapper::initROS(bool use_bag)
   policy->setMaxIntervalDuration(ros::Duration(max_time_between_imu_odo));
 
   // lower bound should be half of the time period (= double the rate) for each topic
-  policy->setInterMessageLowerBound(0, ros::Rate(odo_topic_rate*2).expectedCycleTime());
+  policy->setInterMessageLowerBound(0, ros::Rate(odo_vel_topic_rate*2).expectedCycleTime());
   policy->setInterMessageLowerBound(1, ros::Rate(imu_topic_rate*2).expectedCycleTime());
 
 
@@ -83,18 +86,33 @@ bool BaseWrapper::initROS(bool use_bag)
 
 }
 
+// callback if odo-pos has arrived
+void BaseWrapper::posCallback(const nav_msgs::OdometryConstPtr &msg_odo)
+{
+  // save odo pos message
+  odo_pos_mutex.lock();
+  nav_msgs::OdometryConstPtr ptr(new nav_msgs::Odometry( *msg_odo ));
+  last_odo_pos_msg = ptr;
+  odo_pos_mutex.unlock();
 
-// callback if both odo and imu messages with same timestamp have arrived
-void BaseWrapper::syncCallback(const nav_msgs::OdometryConstPtr &msg_odo,
+}
+
+
+// callback if both odo-vel and imu messages with same timestamp have arrived
+void BaseWrapper::syncCallback(const nav_msgs::OdometryConstPtr &msg_odo_vel,
                                const sensor_msgs::ImuConstPtr &msg_imu)
 {
+  // get last odom pos msg
+  odo_pos_mutex.lock();
+  nav_msgs::OdometryConstPtr msg_odo_pos(new nav_msgs::Odometry( *last_odo_pos_msg ));
+  odo_pos_mutex.unlock();
 
   ROS_DEBUG_STREAM("Got new callback with times. IMU: " << msg_imu->header.stamp
-                                           << " Odom: " << msg_odo->header.stamp
-                                           << " Diff: " << msg_imu->header.stamp.toSec() - msg_odo->header.stamp.toSec());
+                                           << " Odom: " << msg_odo_vel->header.stamp
+                                           << " Diff: " << msg_imu->header.stamp.toSec() - msg_odo_vel->header.stamp.toSec());
 
   // check if timestamps are 0
-  if(ros::Time(0) == msg_imu->header.stamp || ros::Time(0) == msg_odo->header.stamp)
+  if(ros::Time(0) == msg_imu->header.stamp || ros::Time(0) == msg_odo_vel->header.stamp)
   {
     ROS_WARN("A timestamp is 0. Skipping messages.");
     return;
@@ -102,7 +120,7 @@ void BaseWrapper::syncCallback(const nav_msgs::OdometryConstPtr &msg_odo,
 
   // set timestamp
   ros::Time current_timestamp =
-      ros::Time((msg_imu->header.stamp.toSec() + msg_odo->header.stamp.toSec())/2);
+      ros::Time((msg_imu->header.stamp.toSec() + msg_odo_vel->header.stamp.toSec())/2);
 
 
   // check if this is first loop or reinitialized
@@ -150,7 +168,7 @@ void BaseWrapper::syncCallback(const nav_msgs::OdometryConstPtr &msg_odo,
   }
 
   // insert measurement update
-  if(!insertMeasurement(msg_odo, msg_imu))
+  if(!insertMeasurement(msg_odo_pos, msg_odo_vel, msg_imu))
   {
     last_timestamp = ros::Time(0);
     return;
@@ -158,7 +176,7 @@ void BaseWrapper::syncCallback(const nav_msgs::OdometryConstPtr &msg_odo,
 
 
   // compute Kalman filter step
-  computeFilterStep(current_delta.toSec(), msg_odo, msg_imu);
+  computeFilterStep(current_delta.toSec(), msg_odo_pos, msg_odo_vel, msg_imu);
 
   // create output messages
   geometry_msgs::TransformStamped tf;
@@ -201,43 +219,43 @@ void BaseWrapper::syncCallback(const nav_msgs::OdometryConstPtr &msg_odo,
 // read data from bag and feed it into fake subscriber
 bool BaseWrapper::processBag(std::string bag_file_path)
 {
-  // open bag
-  rosbag::Bag bag;
-  bag.open(bag_file_path, rosbag::bagmode::Read);
+//  // open bag
+//  rosbag::Bag bag;
+//  bag.open(bag_file_path, rosbag::bagmode::Read);
 
-  // topics to load
-  std::vector<std::string> bag_topics;
-  bag_topics.push_back(odo_topic_name);
-  bag_topics.push_back(imu_topic_name);
+//  // topics to load
+//  std::vector<std::string> bag_topics;
+//  bag_topics.push_back(odo_topic_name);
+//  bag_topics.push_back(imu_topic_name);
 
-  // create bag view
-  rosbag::View bag_view(bag, rosbag::TopicQuery(bag_topics));
+//  // create bag view
+//  rosbag::View bag_view(bag, rosbag::TopicQuery(bag_topics));
 
-  // loop over all messages
-  BOOST_FOREACH(rosbag::MessageInstance const m, bag_view)
-  {
+//  // loop over all messages
+//  BOOST_FOREACH(rosbag::MessageInstance const m, bag_view)
+//  {
 
-    // odometer msg
-    if(m.getTopic() == odo_topic_name || ("/" + m.getTopic() == odo_topic_name))
-    {
-      nav_msgs::OdometryConstPtr odo = m.instantiate<nav_msgs::Odometry>();
-      if (odo != NULL){
-        sync->add<0>(odo);
-      }
-    }
+//    // odometer msg
+//    if(m.getTopic() == odo_topic_name || ("/" + m.getTopic() == odo_topic_name))
+//    {
+//      nav_msgs::OdometryConstPtr odo = m.instantiate<nav_msgs::Odometry>();
+//      if (odo != NULL){
+//        sync->add<0>(odo);
+//      }
+//    }
 
-    // imu msg
-    if(m.getTopic() == imu_topic_name || ("/" + m.getTopic() == imu_topic_name))
-    {
-      sensor_msgs::ImuConstPtr imu = m.instantiate<sensor_msgs::Imu>();
-      if (imu != NULL){
-        sync->add<1>(imu);
-      }
-    }
-  }
+//    // imu msg
+//    if(m.getTopic() == imu_topic_name || ("/" + m.getTopic() == imu_topic_name))
+//    {
+//      sensor_msgs::ImuConstPtr imu = m.instantiate<sensor_msgs::Imu>();
+//      if (imu != NULL){
+//        sync->add<1>(imu);
+//      }
+//    }
+//  }
 
-  // close bag
-  bag.close();
+//  // close bag
+//  bag.close();
   return true;
 }
 

@@ -2,9 +2,13 @@
     <!-- vehicle name e.g. cc2017_car -->
     <arg name="vehicle" default="cc2017_car"/>
 
-    <!-- odometer topic -->
-    <arg name="odo_topic_name" default="/from_mav/odom"/>
-    <arg name="odo_topic_rate" default="250"/>
+    <!-- odometer position topic -->
+    <arg name="odo_pos_topic_name" default=""/>
+    <arg name="odo_pos_topic_rate" default="0"/>
+
+    <!-- odometer velocity topic -->
+    <arg name="odo_vel_topic_name" default="/from_mav/odom"/>
+    <arg name="odo_vel_topic_rate" default="250"/>
 
     <!-- IMU topic -->
     <arg name="imu_topic_name" default="/from_mav/imu/data"/>
@@ -74,9 +78,11 @@
 
     <node name="odom_fusion" pkg="drive_ros_localize_odom_fusion" type="drive_ros_localize_odom_fusion_node"
           output="$(arg output)" launch-prefix="$(arg nice_val_pre)" >
-        <param name="odo_topic_name" type="str" value="$(arg odo_topic_name)"/>
+        <param name="odo_pos_topic_name" type="str" value="$(arg odo_pos_topic_name)"/>
+        <param name="odo_vel_topic_name" type="str" value="$(arg odo_vel_topic_name)"/>
         <param name="imu_topic_name" type="str" value="$(arg imu_topic_name)"/>
-        <param name="odo_topic_rate" type="int" value="$(arg odo_topic_rate)" />
+        <param name="odo_pos_topic_rate" type="int" value="$(arg odo_pos_topic_rate)" />
+        <param name="odo_vel_topic_rate" type="int" value="$(arg odo_vel_topic_rate)" />
         <param name="imu_topic_rate" type="int" value="$(arg imu_topic_rate)" />
         <param name="odo_out_topic"  type="str" value="$(arg odo_out_topic)" />
         <param name="queue_size" type="int" value="$(arg queue_size)" />
