@@ -76,11 +76,6 @@ bool CTRVWrapper::predict(const float delta,
   // set omega
   u.om() = imu_msg->angular_velocity.z;
 
-
-  // TODO
-  // sys.setCovariance...
-
-
   // predict state for current time-step using the kalman filter
   filter.predict(sys, u);
 

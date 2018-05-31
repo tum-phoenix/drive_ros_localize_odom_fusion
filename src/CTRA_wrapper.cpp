@@ -66,12 +66,6 @@ bool CTRAWrapper::predict(const float delta,
   u.omega() = imu_msg->angular_velocity.z;
   u.a() =     imu_msg->linear_acceleration.x;
 
-  // set system covariance
-  auto cov(sys.getCovariance());
-  cov(State::A, State::A) = imu_msg->linear_acceleration_covariance[CovElem::lin::linX_linX];
-  cov(State::OMEGA, State::OMEGA) = imu_msg->angular_velocity_covariance[CovElem::ang::angZ_angZ];
-  sys.setCovariance(cov);
-
   // predict state for current time-step using the kalman filter
   filter.predict(sys, u);
 
