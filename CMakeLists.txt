@@ -16,7 +16,6 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   kalman
   std_srvs
-  rosbag
 )
 
 

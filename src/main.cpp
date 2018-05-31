@@ -17,13 +17,6 @@ int main(int argc, char **argv)
   // pointer to model
   BaseWrapper* model;
 
-  // check if we want to read from a bag
-  std::string bag_file_path;
-  bool use_bag;
-  pnh.param<std::string>("bag_file_path", bag_file_path, "/tmp/in.bag");
-  pnh.param<bool>("read_from_bag", use_bag, false);
-
-
   // which model to use?
   std::string vehicle_model;
   pnh.param<std::string>("vehicle_model", vehicle_model, "CTRA");
@@ -44,28 +37,20 @@ int main(int argc, char **argv)
 
 
   // initialize ros stuff
-  if(model->initROS(use_bag))
+  if(model->initROS())
   {
     ROS_INFO("Odometry fusion node succesfully initialized");
-  }else{
-    ROS_ERROR("Odometry fusion node failed!");
-  }
-
-
-  // check if read from bag
-  if(use_bag){
-
-    // read data directly from a bag
-    model->processBag(bag_file_path);
-
-  }else{
 
     // spin node normally
     while(ros::ok()){
       ros::spin();
     }
+
+  }else{
+    ROS_ERROR("Odometry fusion node failed!");
+
+    nh.shutdown();
+    pnh.shutdown();
   }
-
-
   return 0;
 }

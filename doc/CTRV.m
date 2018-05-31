@@ -6,19 +6,21 @@
 % Also generates code which can be used directly in Maltab 
 % (make sure that the variable order match).
 
-syms x y theta v omega t
+% state vector
+syms x y theta 
+
+% inputs
+syms v omega t
 
 % System model matrix
 f = [
     x + ( v / omega ) * ( sin(theta + omega * t) - sin(theta) );
     y + ( v / omega ) * ( cos(theta) - cos(theta + omega *t) );
     theta + t * omega;
-    v;
-    omega;
 ];
 
 % Compute Jacobian w.r.t state vector
-F = jacobian(f, [x,y,theta,v,omega]);
+F = jacobian(f, [x,y,theta]);
 
 % simplify computed jacobian
 Fs = simplify(F);

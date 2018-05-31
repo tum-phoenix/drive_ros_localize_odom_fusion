@@ -1,18 +1,22 @@
 <launch>
     <!-- vehicle name e.g. cc2017_car -->
-    <arg name="vehicle" default="cc2017_car"/>
+    <arg name="vehicle" default=""/>
 
-    <!-- odometer position topic -->
-    <arg name="odo_pos_topic_name" default=""/>
-    <arg name="odo_pos_topic_rate" default="0"/>
+    <!-- prediction odometer topic -->
+    <arg name="pred_odo_topic_name" default=""/>
+    <arg name="pred_odo_topic_rate" default="0"/>
 
-    <!-- odometer velocity topic -->
-    <arg name="odo_vel_topic_name" default="/from_mav/odom"/>
-    <arg name="odo_vel_topic_rate" default="250"/>
+    <!-- correction odometer topic -->
+    <arg name="corr_odo_topic_name" default=""/>
+    <arg name="corr_odo_topic_rate" default="0"/>
 
-    <!-- IMU topic -->
-    <arg name="imu_topic_name" default="/from_mav/imu/data"/>
-    <arg name="imu_topic_rate" default="250"/>
+    <!-- prediction IMU topic -->
+    <arg name="pred_imu_topic_name" default=""/>
+    <arg name="pred_imu_topic_rate" default="0"/>
+
+    <!-- correction IMU topic -->
+    <arg name="corr_imu_topic_name" default=""/>
+    <arg name="corr_imu_topic_rate" default="0"/>
 
     <!-- fused odometry output -->
     <arg name="odo_out_topic" default="odom" />
@@ -26,19 +30,13 @@
     <!-- size of subscriber and sync policy queues -->
     <arg name="queue_size" default="10"/>
 
-    <!-- age penalty of approx time message filter (http://wiki.ros.org/message_filters/ApproximateTime) -->
-    <arg name="age_penalty" default="5"/>
-
-    <!-- maximum time allowed between the imu and odo message -->
-    <arg name="max_time_between_imu_odo" default="0.001" />
-
     <!--
          maximum time allowed between two measurements (imu+odo).
          If this time difference between measurments exceeds this threshold [sec]
          -> reset the filter covariances
          -> typically occurs when running a bag in a loop -> big time jump
     -->
-    <arg name="max_time_between_meas" default="0.1"/>
+    <arg name="time_threshold" default="0.2"/>
 
     <!--
         vehicle model being used. Possible vehicle models available:
@@ -47,27 +45,15 @@
 
         All model specific parameters should be defined in the respective vehicle config file (see below).
     -->
-    <arg name="vehicle_model" default="CTRA"/>
+    <arg name="vehicle_model" default="CTRV"/>
 
 
     <!-- vehicle configuration file it should be named: <vehicle_model>_<vehicle>.yaml -->
     <arg name="vehicle_config" default="$(find drive_ros_localize_odom_fusion)/config/$(arg vehicle_model)_$(arg vehicle).yaml" />
 
-
-    <!--
-        use sensor time to publish tf and odometry
-        advantage: published time is similar to sensor data time
-        disadvantage: can cause problems with time jumps, when replaying bags in loops
-    -->
-    <arg name="use_sensor_time_for_pub" default="false" />
-
     <!-- debug odometry output to file -->
     <arg name="debug_out" default="false" />
     <arg name="debug_out_file_path" default="/tmp/out_debug_2.csv" />
-
-    <!-- read messages from bag file instead of incoming messages -->
-    <arg name="read_from_bag" default="false" />
-    <arg name="bag_file_path" default="$(find drive_ros_localize_odom_fusion)/test/circle_001.bag" />
 
     <!-- forward output to [screen|log] -->
     <arg name="output" default="screen"/>
@@ -78,25 +64,22 @@
 
     <node name="odom_fusion" pkg="drive_ros_localize_odom_fusion" type="drive_ros_localize_odom_fusion_node"
           output="$(arg output)" launch-prefix="$(arg nice_val_pre)" >
-        <param name="odo_pos_topic_name" type="str" value="$(arg odo_pos_topic_name)"/>
-        <param name="odo_vel_topic_name" type="str" value="$(arg odo_vel_topic_name)"/>
-        <param name="imu_topic_name" type="str" value="$(arg imu_topic_name)"/>
-        <param name="odo_pos_topic_rate" type="int" value="$(arg odo_pos_topic_rate)" />
-        <param name="odo_vel_topic_rate" type="int" value="$(arg odo_vel_topic_rate)" />
-        <param name="imu_topic_rate" type="int" value="$(arg imu_topic_rate)" />
-        <param name="odo_out_topic"  type="str" value="$(arg odo_out_topic)" />
-        <param name="queue_size" type="int" value="$(arg queue_size)" />
-        <param name="age_penalty" type="double" value="$(arg age_penalty)" />
-        <param name="max_time_between_meas" type="double" value="$(arg max_time_between_meas)" />
-        <param name="max_time_between_imu_odo" type="double" value="$(arg max_time_between_imu_odo)" />
-        <param name="vehicle_model" type="str" value ="$(arg vehicle_model)" />
-        <param name="static_frame" type="str" value="$(arg static_frame)" />
-        <param name="moving_frame" type="str" value="$(arg moving_frame)" />
-        <param name="use_sensor_time_for_pub" type="bool" value="$(arg use_sensor_time_for_pub)" />
-        <param name="debug_out" type="bool" value ="$(arg debug_out)" />
-        <param name="debug_out_file_path" type="str" value ="$(arg debug_out_file_path)" />
-        <param name="read_from_bag" type="bool" value ="$(arg read_from_bag)" />
-        <param name="bag_file_path" type="str" value ="$(arg bag_file_path)" />
+        <param name="pred_odo_topic_name" type="str"    value="$(arg pred_odo_topic_name)"/>
+        <param name="pred_odo_topic_rate" type="int"    value="$(arg pred_odo_topic_rate)"/>
+        <param name="corr_odo_topic_name" type="str"    value="$(arg corr_odo_topic_name)"/>
+        <param name="corr_odo_topic_rate" type="int"    value="$(arg corr_odo_topic_rate)"/>
+        <param name="pred_imu_topic_name" type="str"    value="$(arg pred_imu_topic_name)"/>
+        <param name="pred_imu_topic_rate" type="int"    value="$(arg pred_imu_topic_rate)"/>
+        <param name="corr_imu_topic_name" type="str"    value="$(arg corr_imu_topic_name)"/>
+        <param name="corr_imu_topic_rate" type="int"    value="$(arg corr_imu_topic_rate)"/>
+        <param name="odo_out_topic"       type="str"    value="$(arg odo_out_topic)" />
+        <param name="queue_size"          type="int"    value="$(arg queue_size)" />
+        <param name="time_threshold"      type="double" value="$(arg time_threshold)" />
+        <param name="vehicle_model"       type="str"    value="$(arg vehicle_model)" />
+        <param name="static_frame"        type="str"    value="$(arg static_frame)" />
+        <param name="moving_frame"        type="str"    value="$(arg moving_frame)" />
+        <param name="debug_out"           type="bool"   value="$(arg debug_out)" />
+        <param name="debug_out_file_path" type="str"    value="$(arg debug_out_file_path)" />
         <rosparam command="load" file="$(arg vehicle_config)"/>
     </node>
 </launch>

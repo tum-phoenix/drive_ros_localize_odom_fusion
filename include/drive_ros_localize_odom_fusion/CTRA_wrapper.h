@@ -28,16 +28,14 @@ private:
 
   // initialize Kalman Filter
   bool initFilterState();
-  bool initFilterProcessCov();
 
-  bool insertMeasurement(const nav_msgs::OdometryConstPtr &odo_pos_msg,
-                         const nav_msgs::OdometryConstPtr &odo_vel_msg,
-                         const sensor_msgs::ImuConstPtr &imu_msg);
+  bool predict(const float,
+               const nav_msgs::OdometryConstPtr &odo_msg,
+               const sensor_msgs::ImuConstPtr &imu_msg);
 
-  bool computeFilterStep(const float,
-                         const nav_msgs::OdometryConstPtr &odo_pos_msg,
-                         const nav_msgs::OdometryConstPtr &odo_vel_msg,
-                         const sensor_msgs::ImuConstPtr &imu_msg);
+  bool correct(const float,
+               const nav_msgs::OdometryConstPtr &odo_msg,
+               const sensor_msgs::ImuConstPtr &imu_msg);
 
   bool getOutput(geometry_msgs::TransformStamped& tf_msg,
                  nav_msgs::Odometry& odom_msg);

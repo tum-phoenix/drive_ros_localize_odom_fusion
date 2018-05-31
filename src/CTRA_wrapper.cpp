@@ -1,10 +1,5 @@
 #include "drive_ros_localize_odom_fusion/CTRA_wrapper.h"
 
-// TODO: put this somewhere else
-#include "drive_ros_localize_odom_fusion/moving_average.h"
-static MovingAverage average_v(3);
-static MovingAverage average_v_cov(3);
-
 
 CTRAWrapper::CTRAWrapper(ros::NodeHandle& n, ros::NodeHandle& p)
 {
@@ -15,6 +10,9 @@ CTRAWrapper::CTRAWrapper(ros::NodeHandle& n, ros::NodeHandle& p)
 
 bool CTRAWrapper::initFilterState()
 {
+  bool ret = true;
+
+
   ROS_INFO("Reset Kalman State.");
 
   // Init kalman
@@ -26,87 +24,42 @@ bool CTRAWrapper::initFilterState()
   Kalman::Covariance<State> stateCov;
   stateCov.setZero();
 
-  if(!(pnh.getParam("kalman_cov/filter_init_var_x", stateCov(State::X, State::X)) &&
-       pnh.getParam("kalman_cov/filter_init_var_y", stateCov(State::Y, State::Y)) &&
-       pnh.getParam("kalman_cov/filter_init_var_a", stateCov(State::A, State::A)) &&
-       pnh.getParam("kalman_cov/filter_init_var_v", stateCov(State::V, State::V)) &&
-       pnh.getParam("kalman_cov/filter_init_var_theta", stateCov(State::THETA, State::THETA)) &&
-       pnh.getParam("kalman_cov/filter_init_var_omega", stateCov(State::OMEGA, State::OMEGA))))
-  {
-    ROS_ERROR("Error loading Kalman initial state covariance!");
-    return false;
-  }
+  ret &= pnh.getParam("kalman_cov/filter_init_var_x", stateCov(State::X, State::X));
+  ret &= pnh.getParam("kalman_cov/filter_init_var_y", stateCov(State::Y, State::Y));
+  ret &= pnh.getParam("kalman_cov/filter_init_var_a", stateCov(State::A, State::A));
+  ret &= pnh.getParam("kalman_cov/filter_init_var_v", stateCov(State::V, State::V));
+  ret &= pnh.getParam("kalman_cov/filter_init_var_theta", stateCov(State::THETA, State::THETA));
+  ret &= pnh.getParam("kalman_cov/filter_init_var_omega", stateCov(State::OMEGA, State::OMEGA));
 
-  filter.setCovariance(stateCov);
-  return true;
-
-}
-
-// initialize Filter covariances
-bool CTRAWrapper::initFilterProcessCov()
-{
+  ret &= filter.setCovariance(stateCov);
 
   // Set process noise covariance
   Kalman::Covariance<State> cov;
   cov.setZero();
 
-  if(!(pnh.getParam("kalman_cov/sys_var_x", cov(State::X, State::X)) &&
-       pnh.getParam("kalman_cov/sys_var_y", cov(State::Y, State::Y)) &&
-       pnh.getParam("kalman_cov/sys_var_a", cov(State::A, State::A)) &&
-       pnh.getParam("kalman_cov/sys_var_v", cov(State::V, State::V)) &&
-       pnh.getParam("kalman_cov/sys_var_theta", cov(State::THETA, State::THETA)) &&
-       pnh.getParam("kalman_cov/sys_var_omega", cov(State::OMEGA, State::OMEGA))))
-  {
-    ROS_ERROR("Error loading Kalman process covariance!");
-    return false;
-  }
+  ret &= pnh.getParam("kalman_cov/sys_var_x", cov(State::X, State::X));
+  ret &= pnh.getParam("kalman_cov/sys_var_y", cov(State::Y, State::Y));
+  ret &= pnh.getParam("kalman_cov/sys_var_a", cov(State::A, State::A));
+  ret &= pnh.getParam("kalman_cov/sys_var_v", cov(State::V, State::V));
+  ret &= pnh.getParam("kalman_cov/sys_var_theta", cov(State::THETA, State::THETA));
+  ret &= pnh.getParam("kalman_cov/sys_var_omega", cov(State::OMEGA, State::OMEGA));
 
-  sys.setCovariance(cov);
-  return true;
+  ret &= sys.setCovariance(cov);
+  return ret;
+
 }
 
 
-
-bool CTRAWrapper::insertMeasurement(const nav_msgs::OdometryConstPtr &odo_pos_msg,
-                                    const nav_msgs::OdometryConstPtr &odo_vel_msg,
-                                    const sensor_msgs::ImuConstPtr &imu_msg)
+bool CTRAWrapper::predict(const float delta,
+                          const nav_msgs::OdometryConstPtr &odo_msg,
+                          const sensor_msgs::ImuConstPtr &imu_msg)
 {
-
-  // Set measurement covariances
-  Kalman::Covariance<Measurement> cov;
-  cov.setZero();
-  cov(Measurement::V, Measurement::V) = average_v_cov.addAndGetCrrtAvg(std::sqrt(static_cast<float>(std::pow(odo_vel_msg->twist.covariance[CovElem::lin_ang::linX_linX], 2)
-                                                                                                  + std::pow(odo_vel_msg->twist.covariance[CovElem::lin_ang::linY_linY], 2))));
-  mm.setCovariance(cov);
-
-
-
-  // set measurements vector z
-  z.v() = average_v.addAndGetCrrtAvg( std::sqrt(static_cast<float>(std::pow(odo_vel_msg->twist.twist.linear.x, 2)
-                                                                 + std::pow(odo_vel_msg->twist.twist.linear.y, 2))) );
-
-  ROS_DEBUG_STREAM("measurementVector: " << z);
-
-  // check if there is something wrong
-  if( std::isnan(cov(Measurement::V,     Measurement::V)    ) ||
-      std::isnan(z.v()) )
+  // check if the required messages are available
+  if(imu_msg == NULL)
   {
-    ROS_ERROR("Measurement is NAN! Reinit Kalman.");
-    // reset covariances and filter
-    initFilterProcessCov();
-    initFilterState();
+    ROS_ERROR("Prediction imu message required for CTRA model! Abort.");
     return false;
   }
-
-  return true;
-}
-
-
-bool CTRAWrapper::computeFilterStep(const float delta,
-                                    const nav_msgs::OdometryConstPtr &odo_pos_msg,
-                                    const nav_msgs::OdometryConstPtr &odo_vel_msg,
-                                    const sensor_msgs::ImuConstPtr &imu_msg)
-{
 
   // time difference
   u.dt() = delta;
@@ -122,8 +75,56 @@ bool CTRAWrapper::computeFilterStep(const float delta,
   // predict state for current time-step using the kalman filter
   filter.predict(sys, u);
 
+  // check if there is something wrong
+  if(filter.getCovariance().hasNaN()            ||
+     filter.getState().hasNaN()                 ||
+     u.hasNaN() )
+  {
+    ROS_ERROR("State covariances or vector is broken! Abort!");
+    return false;
+  }
+
+  return true;
+}
+
+bool CTRAWrapper::correct(const float delta,
+                          const nav_msgs::OdometryConstPtr &odo_msg,
+                          const sensor_msgs::ImuConstPtr &imu_msg)
+{
+
+  // check if the required messages are available
+  if(odo_msg == NULL)
+  {
+    ROS_ERROR("Correction imu message required for CTRA model! Abort.");
+    return false;
+  }
+
+
+  // Set measurement covariances
+  Kalman::Covariance<Measurement> cov;
+  cov.setZero();
+  cov(Measurement::V, Measurement::V) = std::sqrt(static_cast<float>(std::pow(odo_msg->twist.covariance[CovElem::lin_ang::linX_linX], 2)
+                                                                   + std::pow(odo_msg->twist.covariance[CovElem::lin_ang::linY_linY], 2)));
+  mm.setCovariance(cov);
+
+
+
+  // set measurements vector z
+  z.v() = std::sqrt(static_cast<float>(std::pow(odo_msg->twist.twist.linear.x, 2)
+        + std::pow(odo_msg->twist.twist.linear.y, 2))) ;
+
+  ROS_DEBUG_STREAM("measurementVector: " << z);
+
   // perform measurement update
   filter.update(mm, z);
+
+  // check if there is something wrong
+  if(cov.hasNaN()            ||
+     z.hasNaN())
+  {
+    ROS_ERROR("Measurement covariances or vector is broken! Abort.");
+    return false;
+  }
 
   return true;
 }
@@ -144,22 +145,6 @@ bool CTRAWrapper::getOutput(geometry_msgs::TransformStamped& tf_msg,
   // transform euler to quaternion angles
   tf2::Quaternion q1;
   q1.setRPY(0, 0, state.theta());
-
-  // check if nan
-  if( std::isnan(state.x())       ||
-      std::isnan(state.y())       ||
-      std::isnan(state.theta())   ||
-      std::isnan(state.v())       ||
-      std::isnan(state.a())       ||
-      std::isnan(state.omega()))
-  {
-    ROS_ERROR_STREAM("State is NAN! Reinit Kalman. State vector: " << state);
-    // reset covariances and filter
-    initFilterProcessCov();
-    initFilterState();
-    return false;
-
-  }
 
 
   // tf
@@ -191,13 +176,12 @@ bool CTRAWrapper::getOutput(geometry_msgs::TransformStamped& tf_msg,
   odom_msg.pose.covariance[CovElem::lin_ang::angZ_linY] = cov_ft(State::THETA,  State::Y);
 
   // odom twist
-  odom_msg.twist.twist.linear.x = state.v();
-  odom_msg.twist.twist.angular.z = state.omega();
-  odom_msg.twist.covariance[CovElem::lin_ang::linX_linX] = cov_ft(State::V,      State::V);
-  odom_msg.twist.covariance[CovElem::lin_ang::linX_angZ] = cov_ft(State::V,      State::OMEGA);
-  odom_msg.twist.covariance[CovElem::lin_ang::angZ_angZ] = cov_ft(State::OMEGA,  State::OMEGA);
-  odom_msg.twist.covariance[CovElem::lin_ang::linX_angZ] = cov_ft(State::V,      State::OMEGA);
-
+  //odom_msg.twist.twist.linear.x = state.v();
+  //odom_msg.twist.twist.angular.z = state.omega();
+  //odom_msg.twist.covariance[CovElem::lin_ang::linX_linX] = cov_ft(State::V,      State::V);
+  //odom_msg.twist.covariance[CovElem::lin_ang::linX_angZ] = cov_ft(State::V,      State::OMEGA);
+  //odom_msg.twist.covariance[CovElem::lin_ang::angZ_angZ] = cov_ft(State::OMEGA,  State::OMEGA);
+  //odom_msg.twist.covariance[CovElem::lin_ang::linX_angZ] = cov_ft(State::V,      State::OMEGA);
 
   return true;
 

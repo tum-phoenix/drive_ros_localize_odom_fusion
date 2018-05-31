@@ -12,22 +12,22 @@ namespace CTRV {
  * @param T Numeric scalar type
  */
 template<typename T>
-class Measurement : public Kalman::Vector<T, 2>
+class Measurement : public Kalman::Vector<T, 3>
 {
 public:
-    KALMAN_VECTOR(Measurement, T, 2)
+    KALMAN_VECTOR(Measurement, T, 3)
 
-    //! velocity
-    static constexpr size_t V = 0;
+    static constexpr size_t X = 0; //! x
+    static constexpr size_t Y = 1; //! y
+    static constexpr size_t YAW = 2; //! yaw
 
-    //! turn rate around z-axis
-    static constexpr size_t OMEGA = 1;
+    T x()        const { return (*this)[ X ]; }
+    T y()        const { return (*this)[ Y ]; }
+    T yaw()      const { return (*this)[ YAW ]; }
 
-    T v()       const { return (*this)[ V ]; }
-    T omega()    const { return (*this)[ OMEGA ]; }
-
-    T& v()      { return (*this)[ V ]; }
-    T& omega()   { return (*this)[ OMEGA ]; }
+    T& x()       { return (*this)[ X ]; }
+    T& y()       { return (*this)[ Y ]; }
+    T& yaw()     { return (*this)[ YAW ]; }
 };
 
 /**
@@ -63,8 +63,9 @@ public:
     {
         M measurement;
 
-        measurement.v() = x.v();
-        measurement.omega() = x.omega();
+        measurement.x() = x.x();
+        measurement.y() = x.y();
+        measurement.yaw() = x.theta();
 
         return measurement;
     }
@@ -73,9 +74,9 @@ protected:
     void updateJacobians( const S& x )
     {
         this->H.setZero();
-
-        this->H(M::V, S::V) = 1;
-        this->H(M::OMEGA, S::OMEGA) = 1;
+        this->H(M::X, S::X) = 1;
+        this->H(M::Y, S::Y) = 1;
+        this->H(M::YAW, S::THETA) = 1;
     }
 };
 
