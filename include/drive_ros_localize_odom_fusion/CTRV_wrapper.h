@@ -5,6 +5,13 @@
 #include "base_wrapper.h"
 #include "CTRV_measurement_model.h"
 #include "CTRV_system_model.h"
+#include "drive_ros_localize_odom_fusion/moving_average.h"
+#include <cmath>
+
+// stupid clang compiler
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#endif
 
 class CTRVWrapper : public BaseWrapper
 {
@@ -28,14 +35,14 @@ private:
 
   // initialize Kalman Filter
   bool initFilterState();
-  bool initFilterProcessCov();
 
-  bool insertMeasurement(const nav_msgs::OdometryConstPtr &odo_msg,
-                         const sensor_msgs::ImuConstPtr &imu_msg);
+  bool predict(const float,
+               const nav_msgs::OdometryConstPtr &odo_msg,
+               const sensor_msgs::ImuConstPtr &imu_msg);
 
-  bool computeFilterStep(const float,
-                         const nav_msgs::OdometryConstPtr &odo_msg,
-                         const sensor_msgs::ImuConstPtr &imu_msg);
+  bool correct(const float,
+               const nav_msgs::OdometryConstPtr &odo_msg,
+               const sensor_msgs::ImuConstPtr &imu_msg);
 
   bool getOutput(geometry_msgs::TransformStamped& tf_msg,
                  nav_msgs::Odometry& odom_msg);
@@ -46,6 +53,11 @@ private:
   SystemModel sys;
   MeasurementModel mm;
   Filter filter;
+
+  Measurement state_old;
+  Measurement odom_old;
+
+  double old_yaw;
 
 };
 
