@@ -16,7 +16,8 @@ Correction step rate can be slower than prediction rate.
 Currently supported models:
 * CTRV
 * CTRA
-=> please check the docs or code which inputs the models require
+
+=> please check the docs or code which inputs the model require
 
 ## dependencies
 - [Kalman Lib](https://github.com/mherb/kalman)
