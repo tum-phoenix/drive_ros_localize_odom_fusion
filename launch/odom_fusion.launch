@@ -62,8 +62,11 @@
     <!-- more infos: https://en.wikipedia.org/wiki/Nice_(Unix) -->
     <arg name="nice_val_pre" default="nice -n -5"/>
 
-    <node name="odom_fusion" pkg="drive_ros_localize_odom_fusion" type="drive_ros_localize_odom_fusion_node"
-          output="$(arg output)" launch-prefix="$(arg nice_val_pre)" >
+    <node name="odom_fusion_$(arg vehicle)_$(arg vehicle_model)"
+          pkg="drive_ros_localize_odom_fusion"
+          type="drive_ros_localize_odom_fusion_node"
+          output="$(arg output)"
+          launch-prefix="$(arg nice_val_pre)" >
         <param name="pred_odo_topic_name" type="str"    value="$(arg pred_odo_topic_name)"/>
         <param name="pred_odo_topic_rate" type="int"    value="$(arg pred_odo_topic_rate)"/>
         <param name="corr_odo_topic_name" type="str"    value="$(arg corr_odo_topic_name)"/>
