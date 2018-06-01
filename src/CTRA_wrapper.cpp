@@ -105,7 +105,7 @@ bool CTRAWrapper::correct(const float delta,
 
   // set measurements vector z
   z.v() = std::sqrt(static_cast<float>(std::pow(odo_msg->twist.twist.linear.x, 2)
-        + std::pow(odo_msg->twist.twist.linear.y, 2))) ;
+                                     + std::pow(odo_msg->twist.twist.linear.y, 2))) ;
 
   ROS_DEBUG_STREAM("measurementVector: " << z);
 

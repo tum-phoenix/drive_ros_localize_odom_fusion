@@ -135,6 +135,7 @@ protected:
 
   // model mutex
   std::mutex model_mutex;
+  bool predict_since_last_correct;
 
   // parameter
   ros::Duration time_threshold;

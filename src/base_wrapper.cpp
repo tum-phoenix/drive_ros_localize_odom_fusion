@@ -151,6 +151,7 @@ bool BaseWrapper::reset()
 
   // reset covariances and filter state
   model_mutex.lock();
+  predict_since_last_correct = false;
   bool ret = initFilterState();
   model_mutex.unlock();
   return ret;
@@ -178,8 +179,9 @@ bool BaseWrapper::processTimestamp(ros::Time& last_t, ros::Time& curr_t,
   // check if this is first loop or reinitialized
   if(ros::Time(0) == last_t){
     ROS_INFO("Last timestamp is 0. Using time_threshold/5 as delta.");
-    last_t = curr_t - ros::Duration(time_threshold.toSec()/5); // use some value for first timestamp
-    curr_d = ros::Duration(time_threshold.toSec()/5);          // use some value for first delta
+    last_t = curr_t - ros::Duration(time_threshold.toSec()/5); // use some value for first last timestamp
+    curr_d = ros::Duration(time_threshold.toSec()/5);          // use some value for first current delta
+    last_d = curr_d;                                           // use some value for first last delta
   }else{
     curr_d = ( curr_t - last_t );
   }
@@ -271,6 +273,8 @@ bool BaseWrapper::processPredictionData(ros::Time current_timestamp,
     return false;
   }
 
+  predict_since_last_correct = true;
+
   // get output from wrapper
   getOutput(tf, odom);
   model_mutex.unlock();
@@ -337,14 +341,20 @@ bool BaseWrapper::processCorrectionData(ros::Time current_timestamp,
 
   // do the correction
   model_mutex.lock();
-  if(!correct(current_delta.toSec(), msg_odo, msg_imu))
-  {
-    ROS_ERROR("Correction step failed!");
-    model_mutex.unlock();
-    reset();
-    return false;
-  }
 
+  // check if we already predicted
+  if(predict_since_last_correct)
+  {
+    predict_since_last_correct = false;
+
+    if(!correct(current_delta.toSec(), msg_odo, msg_imu))
+    {
+      ROS_ERROR("Correction step failed!");
+      model_mutex.unlock();
+      reset();
+      return false;
+    }
+  }
   model_mutex.unlock();
   return true;
 }
