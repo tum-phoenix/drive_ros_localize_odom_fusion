@@ -24,24 +24,16 @@ public:
     static constexpr size_t THETA = 2;
     //! velocity
     static constexpr size_t V = 3;
-    //! acceleration
-    static constexpr size_t A = 4;
-    //! Angular velocity
-    static constexpr size_t OMEGA = 5;
 
     T x()       const { return (*this)[ X ]; }
     T y()       const { return (*this)[ Y ]; }
     T theta()   const { return (*this)[ THETA ]; }
-    T v()      const { return (*this)[ V ]; }
-    T a()      const { return (*this)[ A ]; }
-    T omega()   const { return (*this)[ OMEGA ]; }
+    T v()       const { return (*this)[ V ]; }
 
     T& x()      { return (*this)[ X ]; }
     T& y()      { return (*this)[ Y ]; }
     T& theta()  { return (*this)[ THETA ]; }
-    T& v()     { return (*this)[ V ]; }
-    T& a()     { return (*this)[ A ]; }
-    T& omega()  { return (*this)[ OMEGA ]; }
+    T& v()      { return (*this)[ V ]; }
 };
 
 /**
@@ -115,8 +107,8 @@ public:
 
         auto th = x.theta();
         auto v = x.v();
-        auto a = x.a();
-        auto om = x.omega();
+        auto a = u.a();
+        auto om = u.omega();
         auto dT = u.dt();
 
 
@@ -139,8 +131,6 @@ public:
 
         x_.theta() = x.theta() + om*dT;
         x_.v()     = x.v() + a*dT;
-        x_.a()     = u.a();
-        x_.omega() = u.omega();
 
         // Return transitioned state vector
         return x_;
@@ -152,8 +142,8 @@ protected:
 
         auto th = x.theta();
         auto v = x.v();
-        auto a = x.a();
-        auto om = x.omega();
+        auto a = u.a();
+        auto om = u.omega();
         auto dT = u.dt();
 
         auto cosTh = std::cos(th);
@@ -162,18 +152,12 @@ protected:
         if (std::abs(om) < T(0.01))
         {
             auto pTheta = T(0.5)*dT*(2*v+a*dT);
-            auto pOmega = 1/T(6) * dT*dT * (3*v+2*a*dT);
-            auto pA = T(0.5) * dT*dT;
 
             this->F( S::X, S::THETA ) = pTheta * -sinTh;
             this->F( S::X, S::V )     = dT * cosTh;
-            this->F( S::Y, S::OMEGA ) = pOmega * -sinTh;
-            this->F( S::X, S::A )     = pA * cosTh;
 
             this->F( S::Y, S::THETA ) = pTheta * cosTh;
             this->F( S::Y, S::V )     = dT * sinTh;
-            this->F( S::Y, S::OMEGA ) = pOmega * cosTh;
-            this->F( S::Y, S::A )     = pA * sinTh;
         }
         else
         {
@@ -184,29 +168,16 @@ protected:
 
             this->F( S::X, S::THETA ) = omSqrInv * ( a*om*dT*cosThOmT + v*om*(cosThOmT-cosTh) - a*(sinThOmT-sinTh) );
             this->F( S::X, S::V )     = 1/om * ( sinThOmT - sinTh );
-            this->F( S::X, S::OMEGA ) = omSqrInv * ( (a*dT+v)*(om*dT)*cosThOmT - (T(2)*a*dT+v)*sinThOmT + v*sinTh ) - T(2)*a*omSqrInv/om * (cosThOmT - cosTh);
-            this->F( S::X, S::A )     = omSqrInv * ( om*dT*sinThOmT + cosThOmT - cosTh );
 
             this->F( S::Y, S::THETA ) = omSqrInv * ( a*om*dT*sinThOmT + v*om*(sinThOmT-sinTh) + a*(cosThOmT-cosTh) );
             this->F( S::Y, S::V )     = 1/om * ( - (cosThOmT - cosTh) );
-            this->F( S::Y, S::OMEGA ) = omSqrInv * ( (a*dT+v)*(om*dT)*sinThOmT + (T(2)*a*dT+v)*cosThOmT - v*cosTh ) - T(2)*a*omSqrInv/om * (sinThOmT - sinTh);
-            this->F( S::Y, S::A )     = omSqrInv * ( -om*dT*cosThOmT + sinThOmT - sinTh );
         }
 
         this->F( S::X, S::THETA ) = -std::sin(x.theta())*x.v()*u.dt();
         this->F( S::X, S::V )     = std::cos(x.theta()) * u.dt();
-        this->F( S::X, S::OMEGA ) = std::cos(x.theta()) * u.dt();
-        this->F( S::X, S::A )     = std::cos(x.theta()) * u.dt();
 
         this->F( S::Y, S::THETA ) = -std::cos(x.theta())*x.v()*u.dt();
-        this->F( S::Y, S::V ) = std::sin(x.theta()) * u.dt();
-
-        this->F( S::THETA, S::OMEGA ) = u.dt();
-
-        this->F( S::V, S::A ) = u.dt();
-
-        this->F( S::A, S::A ) = 0;
-        this->F( S::OMEGA, S::OMEGA ) = 0;
+        this->F( S::Y, S::V ) =      std::sin(x.theta()) * u.dt();
 
     }
 };

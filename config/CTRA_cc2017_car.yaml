@@ -1,12 +1,8 @@
 kalman_cov:
-  filter_init_var_a: 0.01
-  filter_init_var_omega: 0.01
   filter_init_var_theta: 0.01
   filter_init_var_v: 0.01
   filter_init_var_x: 0.01
   filter_init_var_y: 0.01
-  sys_var_a: 0.0008755691316617003
-  sys_var_omega: 2.9821478601082267e-09
   sys_var_theta: 3.914915732851555e-09
   sys_var_v: 0.00025844235256071955
   sys_var_x: 5.884615191579713e-09

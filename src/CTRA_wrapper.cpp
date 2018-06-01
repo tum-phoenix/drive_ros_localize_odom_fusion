@@ -26,11 +26,8 @@ bool CTRAWrapper::initFilterState()
 
   ret &= pnh.getParam("kalman_cov/filter_init_var_x", stateCov(State::X, State::X));
   ret &= pnh.getParam("kalman_cov/filter_init_var_y", stateCov(State::Y, State::Y));
-  ret &= pnh.getParam("kalman_cov/filter_init_var_a", stateCov(State::A, State::A));
   ret &= pnh.getParam("kalman_cov/filter_init_var_v", stateCov(State::V, State::V));
   ret &= pnh.getParam("kalman_cov/filter_init_var_theta", stateCov(State::THETA, State::THETA));
-  ret &= pnh.getParam("kalman_cov/filter_init_var_omega", stateCov(State::OMEGA, State::OMEGA));
-
   ret &= filter.setCovariance(stateCov);
 
   // Set process noise covariance
@@ -39,10 +36,8 @@ bool CTRAWrapper::initFilterState()
 
   ret &= pnh.getParam("kalman_cov/sys_var_x", cov(State::X, State::X));
   ret &= pnh.getParam("kalman_cov/sys_var_y", cov(State::Y, State::Y));
-  ret &= pnh.getParam("kalman_cov/sys_var_a", cov(State::A, State::A));
   ret &= pnh.getParam("kalman_cov/sys_var_v", cov(State::V, State::V));
   ret &= pnh.getParam("kalman_cov/sys_var_theta", cov(State::THETA, State::THETA));
-  ret &= pnh.getParam("kalman_cov/sys_var_omega", cov(State::OMEGA, State::OMEGA));
 
   ret &= sys.setCovariance(cov);
   return ret;
