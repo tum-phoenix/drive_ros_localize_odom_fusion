@@ -179,9 +179,9 @@ bool BaseWrapper::processTimestamp(ros::Time& last_t, ros::Time& curr_t,
   // check if this is first loop or reinitialized
   if(ros::Time(0) == last_t){
     ROS_INFO("Last timestamp is 0. Using time_threshold/5 as delta.");
-    last_t = curr_t - ros::Duration(time_threshold.toSec()/5); // use some value for first last timestamp
-    curr_d = ros::Duration(time_threshold.toSec()/5);          // use some value for first current delta
-    last_d = curr_d;                                           // use some value for first last delta
+    curr_d = ros::Duration(time_threshold.toSec()/5); // use some value for first current delta
+    last_t = curr_t - curr_d; // use some value for first last timestamp
+    return true;
   }else{
     curr_d = ( curr_t - last_t );
   }
@@ -198,7 +198,7 @@ bool BaseWrapper::processTimestamp(ros::Time& last_t, ros::Time& curr_t,
    return false;
 
   // jumping back in time
-  }else if(curr_d < ros::Duration(0)) {
+  }else if(curr_d <= ros::Duration(0)) {
       ROS_WARN_STREAM("Jumping back in time. Delta = " << curr_d <<
                        " old_time = " << last_t <<
                        " cur_time = " << curr_t);
@@ -207,14 +207,6 @@ bool BaseWrapper::processTimestamp(ros::Time& last_t, ros::Time& curr_t,
       curr_t = last_t;
       curr_d = last_d;
 
-  // no new data avialable
-  }else if(ros::Duration(0) == curr_d){
-
-      // use last delta
-      curr_d = last_d;
-      ROS_WARN_STREAM("Time delta is zero. Using old delta: " << last_d);
-
-  // everything is ok -> save delta and time
   }else{
     last_d = curr_d;
     last_t = curr_t;
