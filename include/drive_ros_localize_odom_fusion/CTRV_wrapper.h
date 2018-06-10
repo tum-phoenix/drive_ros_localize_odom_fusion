@@ -56,8 +56,7 @@ private:
 
   Measurement state_old;
   Measurement odom_old;
-
-  double old_yaw;
+  double yaw_old;
 
 };
 

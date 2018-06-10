@@ -6,6 +6,11 @@
 #include "CTRA_measurement_model.h"
 #include "CTRA_system_model.h"
 
+// stupid clang compiler
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#endif
+
 class CTRAWrapper : public BaseWrapper
 {
 public:
@@ -47,6 +52,11 @@ private:
   MeasurementModel mm;
   Filter filter;
 
+
+  Kalman::Covariance<Measurement> mm_cov;
+  Measurement odom_old;
+  Measurement state_old;
+  double yaw_old;
 };
 
 

@@ -36,7 +36,7 @@
          -> reset the filter covariances
          -> typically occurs when running a bag in a loop -> big time jump
     -->
-    <arg name="time_threshold" default="0.2"/>
+    <arg name="time_threshold" default="0.5"/>
 
     <!--
         vehicle model being used. Possible vehicle models available:

@@ -13,7 +13,7 @@ bool CTRVWrapper::initFilterState()
 
   state_old.setZero();
   odom_old.setZero();
-  old_yaw = 0;
+  yaw_old = 0;
 
   // Init kalman
   State s;
@@ -127,14 +127,14 @@ bool CTRVWrapper::correct(const float delta,
   tf::Matrix3x3(q).getRPY(roll, pitch, yaw);
 
   // prevent yaw overflow
-  if(yaw - old_yaw > M_PI){
+  if(yaw - yaw_old > M_PI){
     yaw -= 2*M_PI;
   }
 
-  if(old_yaw - yaw > M_PI){
+  if(yaw_old - yaw > M_PI){
     yaw += 2*M_PI;
   }
-  old_yaw = yaw;
+  yaw_old = yaw;
 
   // create differential measurement vector
   z.x()     = state_old.x()   + odo_msg->pose.pose.position.x - odom_old.x();

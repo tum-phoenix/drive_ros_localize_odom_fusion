@@ -11,10 +11,10 @@ namespace CTRA {
  * @param T Numeric scalar type
  */
 template<typename T>
-class State : public Kalman::Vector<T, 6>
+class State : public Kalman::Vector<T, 3>
 {
 public:
-    KALMAN_VECTOR(State, T, 6)
+    KALMAN_VECTOR(State, T, 3)
 
     //! X-position
     static constexpr size_t X = 0;
@@ -22,18 +22,14 @@ public:
     static constexpr size_t Y = 1;
     //! orientation
     static constexpr size_t THETA = 2;
-    //! velocity
-    static constexpr size_t V = 3;
 
     T x()       const { return (*this)[ X ]; }
     T y()       const { return (*this)[ Y ]; }
     T theta()   const { return (*this)[ THETA ]; }
-    T v()       const { return (*this)[ V ]; }
 
     T& x()      { return (*this)[ X ]; }
     T& y()      { return (*this)[ Y ]; }
     T& theta()  { return (*this)[ THETA ]; }
-    T& v()      { return (*this)[ V ]; }
 };
 
 /**
@@ -43,27 +39,31 @@ public:
  * @param T Numeric scalar type
  */
 template<typename T>
-class Control : public Kalman::Vector<T, 3>
+class Control : public Kalman::Vector<T, 4>
 {
 public:
-    KALMAN_VECTOR(Control, T, 3)
+    KALMAN_VECTOR(Control, T, 4)
 
     //! time since filter was last called
     static constexpr size_t DT = 0;
     //! acceleration
     static constexpr size_t A = 1;
+    //! velocity
+    static constexpr size_t V = 2;
     //! omega
-    static constexpr size_t OMEGA = 2;
+    static constexpr size_t OMEGA = 3;
 
 
 
     T dt()      const { return (*this)[ DT ]; }
     T a()       const { return (*this)[ A ]; }
+    T v()       const { return (*this)[ V ]; }
     T omega()   const { return (*this)[ OMEGA ]; }
 
 
     T& dt()     { return (*this)[ DT ]; }
     T& a()      { return (*this)[ A ]; }
+    T& v()      { return (*this)[ V ]; }
     T& omega()  { return (*this)[ OMEGA ]; }
 };
 
@@ -106,8 +106,8 @@ public:
         S x_;
 
         auto th = x.theta();
-        auto v = x.v();
-        auto a = u.a();
+        auto v  = u.v();
+        auto a  = u.a();
         auto om = u.omega();
         auto dT = u.dt();
 
@@ -130,7 +130,6 @@ public:
         }
 
         x_.theta() = x.theta() + om*dT;
-        x_.v()     = x.v() + a*dT;
 
         // Return transitioned state vector
         return x_;
@@ -141,8 +140,8 @@ protected:
         this->F.setIdentity();
 
         auto th = x.theta();
-        auto v = x.v();
-        auto a = u.a();
+        auto v  = u.v();
+        auto a  = u.a();
         auto om = u.omega();
         auto dT = u.dt();
 
@@ -154,10 +153,7 @@ protected:
             auto pTheta = T(0.5)*dT*(2*v+a*dT);
 
             this->F( S::X, S::THETA ) = pTheta * -sinTh;
-            this->F( S::X, S::V )     = dT * cosTh;
-
             this->F( S::Y, S::THETA ) = pTheta * cosTh;
-            this->F( S::Y, S::V )     = dT * sinTh;
         }
         else
         {
@@ -167,18 +163,8 @@ protected:
             auto omSqrInv = 1/(om*om);
 
             this->F( S::X, S::THETA ) = omSqrInv * ( a*om*dT*cosThOmT + v*om*(cosThOmT-cosTh) - a*(sinThOmT-sinTh) );
-            this->F( S::X, S::V )     = 1/om * ( sinThOmT - sinTh );
-
             this->F( S::Y, S::THETA ) = omSqrInv * ( a*om*dT*sinThOmT + v*om*(sinThOmT-sinTh) + a*(cosThOmT-cosTh) );
-            this->F( S::Y, S::V )     = 1/om * ( - (cosThOmT - cosTh) );
         }
-
-        this->F( S::X, S::THETA ) = -std::sin(x.theta())*x.v()*u.dt();
-        this->F( S::X, S::V )     = std::cos(x.theta()) * u.dt();
-
-        this->F( S::Y, S::THETA ) = -std::cos(x.theta())*x.v()*u.dt();
-        this->F( S::Y, S::V ) =      std::sin(x.theta()) * u.dt();
-
     }
 };
 

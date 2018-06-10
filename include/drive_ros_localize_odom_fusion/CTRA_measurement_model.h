@@ -12,17 +12,23 @@ namespace CTRA {
  * @param T Numeric scalar type
  */
 template<typename T>
-class Measurement : public Kalman::Vector<T, 1>
+class Measurement : public Kalman::Vector<T, 3>
 {
 public:
-    KALMAN_VECTOR(Measurement, T, 1)
-
-    // velocity
-    static constexpr size_t V = 0;
+    KALMAN_VECTOR(Measurement, T, 3)
 
 
-    T v()       const { return (*this)[ V ]; }
-    T& v()      { return (*this)[ V ]; }
+    static constexpr size_t X = 0;
+    static constexpr size_t Y = 1;
+    static constexpr size_t YAW = 2;
+
+
+    T x()       const { return (*this)[ X ]; }
+    T& x()      { return (*this)[ X ]; }
+    T y()       const { return (*this)[ Y ]; }
+    T& y()      { return (*this)[ Y ]; }
+    T yaw()       const { return (*this)[ YAW ]; }
+    T& yaw()      { return (*this)[ YAW ]; }
 };
 
 /**
@@ -57,7 +63,9 @@ public:
     M h(const S& x) const
     {
         M measurement;
-        measurement.v()     = x.v();
+        measurement.x()     = x.x();
+        measurement.y()     = x.y();
+        measurement.yaw()   = x.theta();
         return measurement;
     }
 
@@ -65,7 +73,9 @@ protected:
     void updateJacobians( const S& x )
     {
         this->H.setZero();
-        this->H(M::V,     S::V)     = 1;
+        this->H(M::X,     S::X)     = 1;
+        this->H(M::Y,     S::Y)     = 1;
+        this->H(M::YAW,   S::THETA) = 1;
     }
 };
 

@@ -1,9 +1,7 @@
 kalman_cov:
   filter_init_var_theta: 0.01
-  filter_init_var_v: 0.01
   filter_init_var_x: 0.01
   filter_init_var_y: 0.01
-  sys_var_theta: 0.008
-  sys_var_v: 0.0004
+  sys_var_theta: 0.0001
   sys_var_x: 0.001
   sys_var_y: 0.001
