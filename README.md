@@ -19,6 +19,8 @@ Currently supported models:
 
 => please check the docs or code which inputs the model require
 
+Further [infos](https://mediatum.ub.tum.de/node?id=1452203) (chapter 4.2.5).
+
 ## dependencies
 - [Kalman Lib](https://github.com/mherb/kalman)
 
